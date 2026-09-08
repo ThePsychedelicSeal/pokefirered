@@ -472,8 +472,13 @@ extern struct BattleStruct *gBattleStruct;
         typeArg = gBattleMoves[move].type;                            \
 }
 
-#define IS_TYPE_PHYSICAL(moveType)(moveType < TYPE_MYSTERY)
-#define IS_TYPE_SPECIAL(moveType)(moveType > TYPE_MYSTERY)
+// Gen 5 move-specific physical/special split (replaces the vanilla Gen 1-3 type-based split)
+#define SPLIT_PHYSICAL 0
+#define SPLIT_SPECIAL  1
+#define SPLIT_STATUS   2
+
+#define IS_MOVE_PHYSICAL(move)(gMoveSplits[move] == SPLIT_PHYSICAL)
+#define IS_MOVE_SPECIAL(move)(gMoveSplits[move] == SPLIT_SPECIAL)
 
 #define TARGET_TURN_DAMAGED ((gSpecialStatuses[gBattlerTarget].physicalDmg != 0 || gSpecialStatuses[gBattlerTarget].specialDmg != 0))
 

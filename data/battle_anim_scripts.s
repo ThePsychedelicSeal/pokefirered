@@ -375,7 +375,8 @@ gBattleAnims_Moves::
 	.4byte Move_WATER_PULSE
 	.4byte Move_DOOM_DESIRE
 	.4byte Move_PSYCHO_BOOST
-	.4byte Move_COUNT @ cannot be reached, because last move is Psycho Boost
+	.4byte Move_POISON_TAIL @ Move_POISON_JAB reuses Poison Tail's animation
+	.4byte Move_COUNT @ cannot be reached, because last move is Poison Jab
 
 	.align 2
 gBattleAnims_StatusConditions::
