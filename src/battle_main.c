@@ -2579,7 +2579,17 @@ static void BattleIntroDrawTrainersOrMonsSprites(void)
 
             gBattleMons[gActiveBattler].type1 = gSpeciesInfo[gBattleMons[gActiveBattler].species].types[0];
             gBattleMons[gActiveBattler].type2 = gSpeciesInfo[gBattleMons[gActiveBattler].species].types[1];
-            gBattleMons[gActiveBattler].ability = GetAbilityBySpecies(gBattleMons[gActiveBattler].species, gBattleMons[gActiveBattler].abilityNum);
+            // LOTAD: was a raw GetAbilityBySpecies(species, abilityNum) call, which silently
+            // clobbered the ability the buffer copy above had just brought over from
+            // CopyPlayerPartyMonToBattleData's GetMonAbility() call — discarding any All-Gen
+            // ability override the instant battle intro ran. Routed through GetMonAbility on the
+            // real source party mon so the override survives this recompute too. Harmless for any
+            // mon with no override set (or for the enemy side, which never has one): GetMonAbility
+            // falls back to this exact GetAbilityBySpecies call when MON_DATA_ABILITY_OVERRIDE is
+            // ABILITY_NONE.
+            gBattleMons[gActiveBattler].ability = GetMonAbility(GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER
+                ? &gPlayerParty[gBattlerPartyIndexes[gActiveBattler]]
+                : &gEnemyParty[gBattlerPartyIndexes[gActiveBattler]]);
             hpOnSwitchout = &gBattleStruct->hpOnSwitchout[GetBattlerSide(gActiveBattler)];
             *hpOnSwitchout = gBattleMons[gActiveBattler].hp;
             for (i = 0; i < NUM_BATTLE_STATS; i++)

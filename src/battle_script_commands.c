@@ -4510,7 +4510,14 @@ static void Cmd_switchindataupdate(void)
 
     gBattleMons[gActiveBattler].type1 = gSpeciesInfo[gBattleMons[gActiveBattler].species].types[0];
     gBattleMons[gActiveBattler].type2 = gSpeciesInfo[gBattleMons[gActiveBattler].species].types[1];
-    gBattleMons[gActiveBattler].ability = GetAbilityBySpecies(gBattleMons[gActiveBattler].species, gBattleMons[gActiveBattler].abilityNum);
+    // LOTAD: same propagation bug as BattleIntroDrawTrainersOrMonsSprites (src/battle_main.c) —
+    // a raw GetAbilityBySpecies call here clobbered the ability the buffer copy above just carried
+    // over, discarding any All-Gen ability override the instant a mon switched in mid-battle.
+    // Routed through GetMonAbility on the real source party mon instead; behavior-identical for
+    // any mon with no override set.
+    gBattleMons[gActiveBattler].ability = GetMonAbility(GetBattlerSide(gActiveBattler) == B_SIDE_PLAYER
+        ? &gPlayerParty[gBattlerPartyIndexes[gActiveBattler]]
+        : &gEnemyParty[gBattlerPartyIndexes[gActiveBattler]]);
 
     // check knocked off item
     i = GetBattlerSide(gActiveBattler);
