@@ -2229,7 +2229,9 @@ static void BufferMonSkills(void)
     ConvertIntToDecimalStringN(sMonSummaryScreen->summary.expToNextLevelStrBuf, expToNextLevel, STR_CONV_MODE_LEFT_ALIGN, 7);
     sMonSkillsPrinterXpos->toNextLevel = GetNumberRightAlign63(sMonSummaryScreen->summary.expToNextLevelStrBuf);
 
-    type = GetAbilityBySpecies(GetMonData(&sMonSummaryScreen->currentMon, MON_DATA_SPECIES), GetMonData(&sMonSummaryScreen->currentMon, MON_DATA_ABILITY_NUM));
+    // LOTAD: GetMonAbility (not a raw GetAbilityBySpecies call) so the summary screen shows the
+    // real ability when an All-Gen ability override is set on this mon.
+    type = GetMonAbility(&sMonSummaryScreen->currentMon);
     StringCopy(sMonSummaryScreen->summary.abilityNameStrBuf, gAbilityNames[type]);
     StringCopy(sMonSummaryScreen->summary.abilityDescStrBuf, gAbilityDescriptionPointers[type]);
 

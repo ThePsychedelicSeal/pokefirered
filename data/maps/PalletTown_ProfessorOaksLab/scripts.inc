@@ -1,7 +1,12 @@
-.equ PLAYER_STARTER_NUM,      VAR_TEMP_1
-.equ PLAYER_STARTER_SPECIES,  VAR_TEMP_2
-.equ RIVAL_STARTER_SPECIES,   VAR_TEMP_3
-.equ RIVAL_STARTER_ID,        VAR_TEMP_4
+.equ PLAYER_STARTER_NUM,	VAR_TEMP_1
+.equ PLAYER_STARTER_SPECIES,	VAR_TEMP_2
+.equ RIVAL_STARTER_SPECIES,	VAR_TEMP_3
+.equ RIVAL_STARTER_ID,	VAR_TEMP_4
+.equ STARTER_MOVE_1,	VAR_TEMP_8
+.equ STARTER_MOVE_2,	VAR_TEMP_9
+.equ STARTER_MOVE_3,	VAR_TEMP_A
+.equ STARTER_MOVE_4,	VAR_TEMP_B
+.equ STARTER_ITEM,	VAR_TEMP_C
 
 .equ SHOWED_OAK_COMPLETE_DEX, FLAG_TEMP_2
 
@@ -1119,7 +1124,19 @@ PalletTown_ProfessorOaksLab_EventScript_ChoseStarter::
 	call EventScript_RestorePrevTextColor
 	setflag FLAG_SYS_POKEMON_GET
 	setflag FLAG_PALLET_LADY_NOT_BLOCKING_SIGN
-	givemon PLAYER_STARTER_SPECIES, 5
+	setvar VAR_TEMP_5, 16        @ nature/gender - e.g. 100 = Hardy/Male
+	setvar VAR_TEMP_6, 0x3FFF     @ IVs high 16 bits
+	setvar VAR_TEMP_7, 0xFFFF     @ IVs low 16 bits
+	setvar VAR_TEMP_8, MOVE_BRINE
+	setvar VAR_TEMP_9, MOVE_RAIN_DANCE
+	setvar VAR_TEMP_A, MOVE_TACKLE
+	setvar VAR_TEMP_B, MOVE_AQUA_RING
+	setvar VAR_TEMP_C, ITEM_NONE
+	setvar VAR_TEMP_D, 0x0000
+	setvar VAR_TEMP_E, 0x6400
+	setvar VAR_TEMP_F, 0x0064
+	setvar VAR_TEMP_0, ABILITY_NONE @ All-Gen ability override; ABILITY_NONE = vanilla PID-based pick
+	callnative GiveCustomStarter
 	copyvar VAR_STARTER_MON, PLAYER_STARTER_NUM
 	bufferspeciesname STR_VAR_1, PLAYER_STARTER_SPECIES
 	message PalletTown_ProfessorOaksLab_Text_ReceivedMonFromOak

@@ -91,6 +91,11 @@
 #define MON_DATA_SPEED2                   86
 #define MON_DATA_SPATK2                   87
 #define MON_DATA_SPDEF2                   88
+// LOTAD: All-Gen ability override — an explicit ABILITY_ constant (ABILITY_NONE = no override)
+// that GetMonAbility() checks before falling back to vanilla species/PID-based assignment. Lets
+// the featured Pokemon carry any of its real Ability 1/Ability 2/Hidden Ability slots regardless
+// of what GetAbilityBySpecies() would otherwise pick. See PokemonSubstruct0.abilityOverride.
+#define MON_DATA_ABILITY_OVERRIDE         89
 
 // Pokemon types
 #define TYPE_NONE           255

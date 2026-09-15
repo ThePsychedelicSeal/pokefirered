@@ -3096,6 +3096,9 @@ u32 GetBoxMonData3(struct BoxPokemon *boxMon, s32 field, u8 *data)
     case MON_DATA_FRIENDSHIP:
         retVal = substruct0->friendship;
         break;
+    case MON_DATA_ABILITY_OVERRIDE:
+        retVal = substruct0->abilityOverride;
+        break;
     case MON_DATA_MOVE1:
     case MON_DATA_MOVE2:
     case MON_DATA_MOVE3:
@@ -3496,6 +3499,9 @@ void SetBoxMonData(struct BoxPokemon *boxMon, s32 field, const void *dataArg)
     case MON_DATA_FRIENDSHIP:
         SET8(substruct0->friendship);
         break;
+    case MON_DATA_ABILITY_OVERRIDE:
+        SET16(substruct0->abilityOverride);
+        break;
     case MON_DATA_MOVE1:
     case MON_DATA_MOVE2:
     case MON_DATA_MOVE3:
@@ -3802,6 +3808,16 @@ u8 GetMonAbility(struct Pokemon *mon)
 {
     u16 species = GetMonData(mon, MON_DATA_SPECIES, NULL);
     u8 abilityNum = GetMonData(mon, MON_DATA_ABILITY_NUM, NULL);
+    // LOTAD: All-Gen ability override — lets the featured Pokemon carry any of its real Gen 1-5
+    // ability slots (Ability 1/2/Hidden) deterministically, bypassing the vanilla PID-based pick.
+    u16 abilityOverride = GetMonData(mon, MON_DATA_ABILITY_OVERRIDE, NULL);
+
+    if (abilityOverride != ABILITY_NONE)
+    {
+        gLastUsedAbility = abilityOverride;
+        return gLastUsedAbility;
+    }
+
     return GetAbilityBySpecies(species, abilityNum);
 }
 
@@ -3952,7 +3968,9 @@ static void CopyPlayerPartyMonToBattleData(u8 battlerId, u8 partyIndex)
     gBattleMons[battlerId].otId = GetMonData(&gPlayerParty[partyIndex], MON_DATA_OT_ID, NULL);
     gBattleMons[battlerId].type1 = gSpeciesInfo[gBattleMons[battlerId].species].types[0];
     gBattleMons[battlerId].type2 = gSpeciesInfo[gBattleMons[battlerId].species].types[1];
-    gBattleMons[battlerId].ability = GetAbilityBySpecies(gBattleMons[battlerId].species, gBattleMons[battlerId].abilityNum);
+    // LOTAD: routed through GetMonAbility (not a raw GetAbilityBySpecies call) so the All-Gen
+    // ability override on the party mon is respected when battle data is first populated.
+    gBattleMons[battlerId].ability = GetMonAbility(&gPlayerParty[partyIndex]);
     GetMonData(&gPlayerParty[partyIndex], MON_DATA_NICKNAME, nickname);
     StringCopy_Nickname(gBattleMons[battlerId].nickname, nickname);
     GetMonData(&gPlayerParty[partyIndex], MON_DATA_OT_NAME, gBattleMons[battlerId].otName);

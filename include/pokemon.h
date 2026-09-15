@@ -12,7 +12,10 @@ struct PokemonSubstruct0
     u32 experience;
     u8 ppBonuses;
     u8 friendship;
-    u16 filler;
+    // LOTAD: was `u16 filler` — genuinely unused padding (confirmed unreferenced anywhere in
+    // src/pokemon.c), repurposed to hold the MON_DATA_ABILITY_OVERRIDE value. 0 (ABILITY_NONE)
+    // means "no override", so a mon with no override set reads back exactly as it did before.
+    u16 abilityOverride;
 };
 
 struct PokemonSubstruct1
