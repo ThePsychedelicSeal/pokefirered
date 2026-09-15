@@ -1131,11 +1131,12 @@ PalletTown_ProfessorOaksLab_EventScript_ChoseStarter::
 	setvar VAR_TEMP_9, MOVE_RAIN_DANCE
 	setvar VAR_TEMP_A, MOVE_TACKLE
 	setvar VAR_TEMP_B, MOVE_AQUA_RING
-	setvar VAR_TEMP_C, ITEM_NONE
+	setvar VAR_TEMP_C, ITEM_DAMP_ROCK
 	setvar VAR_TEMP_D, 0x0000
 	setvar VAR_TEMP_E, 0x6400
 	setvar VAR_TEMP_F, 0x0064
-	setvar VAR_TEMP_0, ABILITY_NONE @ All-Gen ability override; ABILITY_NONE = vanilla PID-based pick
+	setvar VAR_TEMP_0, ABILITY_RAIN_DISH @ All-Gen ability override; ABILITY_NONE = vanilla PID-based pick
+	setvar VAR_TEMP_LEVEL_UP_LEARNSET_OVERRIDE, 0 @ All-Gen learnset override; 0 = vanilla gLevelUpLearnsets
 	callnative GiveCustomStarter
 	copyvar VAR_STARTER_MON, PLAYER_STARTER_NUM
 	bufferspeciesname STR_VAR_1, PLAYER_STARTER_SPECIES

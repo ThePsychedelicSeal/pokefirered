@@ -115,7 +115,12 @@ struct BoxPokemon
     u8 hasSpecies:1;
     u8 isEgg:1;
     u8 blockBoxRS:1; // Unused, but Pokémon Box Ruby & Sapphire will refuse to deposit a Pokémon with this flag set
-    u8 unused:4;
+    // LOTAD: was `u8 unused:4` — confirmed zero live references anywhere (unlike
+    // PokemonSubstruct3.unusedRibbons, which despite its name is read/written by
+    // evolution_scene.c/trade_scene.c). Repurposed for MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE;
+    // plaintext (outside the encrypted substruct union) is deliberate here, not an oversight —
+    // see the constant's own comment in include/constants/pokemon.h.
+    u8 levelUpLearnsetOverride:4;
     u8 otName[PLAYER_NAME_LENGTH];
     u8 markings;
     u16 checksum;

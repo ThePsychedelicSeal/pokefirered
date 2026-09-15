@@ -29,6 +29,19 @@ void GiveCustomStarter(void)
     }
 
     {
+        // All-Gen level-up learnset override — nonzero means "use the LOTAD tool's All-Gen draft
+        // learnset for this mon's current species (src/data/pokemon/level_up_learnset_overrides.h)
+        // instead of the real vanilla gLevelUpLearnsets[species] table" for both organic
+        // learn-on-levelup and (if a move slot above is ever left MOVE_NONE) the auto-derived
+        // initial moveset. Zero (the default for an older scripts.inc predating this feature)
+        // leaves vanilla behavior untouched. See MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE's own comment
+        // in include/constants/pokemon.h.
+        u8 learnsetOverride = VarGet(VAR_TEMP_LEVEL_UP_LEARNSET_OVERRIDE);
+        if (learnsetOverride)
+            SetMonData(&mon, MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE, &learnsetOverride);
+    }
+
+    {
         u16 move;
 
         move = VarGet(VAR_TEMP_8);

@@ -96,6 +96,18 @@
 // the featured Pokemon carry any of its real Ability 1/Ability 2/Hidden Ability slots regardless
 // of what GetAbilityBySpecies() would otherwise pick. See PokemonSubstruct0.abilityOverride.
 #define MON_DATA_ABILITY_OVERRIDE         89
+// LOTAD: All-Gen level-up learnset override — nonzero means "look this mon's current species up
+// in sLevelUpLearnsetOverrides (src/data/pokemon/level_up_learnset_overrides.h) instead of the
+// real vanilla gLevelUpLearnsets[species] table", checked by GetLevelUpLearnsetForBoxMon/ForMon()
+// in src/pokemon.c before both real table consumers (organic learn-on-levelup and the
+// auto-derived initial/trainer-party moveset). Lives in BoxPokemon's plaintext header (was
+// `unused:4`, confirmed zero live references anywhere) rather than an encrypted substruct like
+// MON_DATA_ABILITY_OVERRIDE above — every substruct's spare byte is already spoken for (see
+// PokemonSubstruct0.abilityOverride), and BoxPokemon.unused was the only field left with a
+// genuinely zero footprint (PokemonSubstruct3.unusedRibbons looks similarly free but is actually
+// live-read/written by evolution_scene.c/trade_scene.c despite the name). See
+// lotad-starter-tool/docs/adding-a-learnset-override.md for the full design writeup.
+#define MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE 90
 
 // Pokemon types
 #define TYPE_NONE           255

@@ -1393,6 +1393,7 @@ static const s8 sNatureStatTable[NUM_NATURES][NUM_NATURE_STATS] =
 #include "data/pokemon/experience_tables.h"
 #include "data/pokemon/species_info.h"
 #include "data/pokemon/level_up_learnsets.h"
+#include "data/pokemon/level_up_learnset_overrides.h"
 #include "data/pokemon/evolution.h"
 #include "data/pokemon/level_up_learnset_pointers.h"
 
@@ -2263,23 +2264,62 @@ static void GiveMonInitialMoveset(struct Pokemon *mon)
     GiveBoxMonInitialMoveset(&mon->box);
 }
 
+// LOTAD: resolves which level-up learnset table a specific mon INSTANCE should read — the real
+// vanilla gLevelUpLearnsets[species] table for everyone, or (only when
+// MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE is set on this exact instance) the All-Gen override for its
+// current species from level_up_learnset_overrides.h. Species-keyed (not a flat slot number) so
+// this keeps resolving correctly as the featured mon evolves mid-run. Falls back to vanilla if the
+// flag is set but the current species has no override entry, rather than ever returning a null
+// learnset pointer. Two near-identical Box/Mon variants, matching this file's own established
+// GetBoxMonData/GetMonData and GiveBoxMonInitialMoveset/GiveMonInitialMoveset split — the Box
+// variant is what CreateBoxMon (and so every mon creation, featured or otherwise) actually runs
+// through, before a struct Pokemon wrapper even exists.
+static const u16 *GetLevelUpLearnsetForBoxMon(struct BoxPokemon *boxMon, u16 species)
+{
+    if (GetBoxMonData(boxMon, MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE, NULL))
+    {
+        s32 i;
+        for (i = 0; i < LEVEL_UP_LEARNSET_OVERRIDES_COUNT; i++)
+        {
+            if (sLevelUpLearnsetOverrides[i].species == species)
+                return sLevelUpLearnsetOverrides[i].learnset;
+        }
+    }
+    return gLevelUpLearnsets[species];
+}
+
+static const u16 *GetLevelUpLearnsetForMon(struct Pokemon *mon, u16 species)
+{
+    if (GetMonData(mon, MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE, NULL))
+    {
+        s32 i;
+        for (i = 0; i < LEVEL_UP_LEARNSET_OVERRIDES_COUNT; i++)
+        {
+            if (sLevelUpLearnsetOverrides[i].species == species)
+                return sLevelUpLearnsetOverrides[i].learnset;
+        }
+    }
+    return gLevelUpLearnsets[species];
+}
+
 static void GiveBoxMonInitialMoveset(struct BoxPokemon *boxMon)
 {
     u16 species = GetBoxMonData(boxMon, MON_DATA_SPECIES, NULL);
     s32 level = GetLevelFromBoxMonExp(boxMon);
+    const u16 *learnset = GetLevelUpLearnsetForBoxMon(boxMon, species);
     s32 i;
 
-    for (i = 0; gLevelUpLearnsets[species][i] != LEVEL_UP_END; i++)
+    for (i = 0; learnset[i] != LEVEL_UP_END; i++)
     {
         u16 moveLevel;
         u16 move;
 
-        moveLevel = (gLevelUpLearnsets[species][i] & LEVEL_UP_MOVE_LV);
+        moveLevel = (learnset[i] & LEVEL_UP_MOVE_LV);
 
         if (moveLevel > (level << 9))
             break;
 
-        move = (gLevelUpLearnsets[species][i] & LEVEL_UP_MOVE_ID);
+        move = (learnset[i] & LEVEL_UP_MOVE_ID);
 
         if (GiveMoveToBoxMon(boxMon, move) == MON_HAS_MAX_MOVES)
             DeleteFirstMoveAndGiveMoveToBoxMon(boxMon, move);
@@ -2291,6 +2331,7 @@ u16 MonTryLearningNewMove(struct Pokemon *mon, bool8 firstMove)
     u32 retVal = MOVE_NONE;
     u16 species = GetMonData(mon, MON_DATA_SPECIES, NULL);
     u8 level = GetMonData(mon, MON_DATA_LEVEL, NULL);
+    const u16 *learnset = GetLevelUpLearnsetForMon(mon, species);
 
     // since you can learn more than one move per level
     // the game needs to know whether you decided to
@@ -2300,17 +2341,17 @@ u16 MonTryLearningNewMove(struct Pokemon *mon, bool8 firstMove)
     {
         sLearningMoveTableID = 0;
 
-        while ((gLevelUpLearnsets[species][sLearningMoveTableID] & LEVEL_UP_MOVE_LV) != (level << 9))
+        while ((learnset[sLearningMoveTableID] & LEVEL_UP_MOVE_LV) != (level << 9))
         {
             sLearningMoveTableID++;
-            if (gLevelUpLearnsets[species][sLearningMoveTableID] == LEVEL_UP_END)
+            if (learnset[sLearningMoveTableID] == LEVEL_UP_END)
                 return MOVE_NONE;
         }
     }
 
-    if ((gLevelUpLearnsets[species][sLearningMoveTableID] & LEVEL_UP_MOVE_LV) == (level << 9))
+    if ((learnset[sLearningMoveTableID] & LEVEL_UP_MOVE_LV) == (level << 9))
     {
-        gMoveToLearn = (gLevelUpLearnsets[species][sLearningMoveTableID] & LEVEL_UP_MOVE_ID);
+        gMoveToLearn = (learnset[sLearningMoveTableID] & LEVEL_UP_MOVE_ID);
         sLearningMoveTableID++;
         retVal = GiveMoveToMon(mon, gMoveToLearn);
     }
@@ -3099,6 +3140,11 @@ u32 GetBoxMonData3(struct BoxPokemon *boxMon, s32 field, u8 *data)
     case MON_DATA_ABILITY_OVERRIDE:
         retVal = substruct0->abilityOverride;
         break;
+    case MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE:
+        // Plaintext BoxPokemon field, not a substruct one (see the constant's own comment) —
+        // boxMon-> is valid here regardless of whether DecryptBoxMon ran above.
+        retVal = boxMon->levelUpLearnsetOverride;
+        break;
     case MON_DATA_MOVE1:
     case MON_DATA_MOVE2:
     case MON_DATA_MOVE3:
@@ -3501,6 +3547,10 @@ void SetBoxMonData(struct BoxPokemon *boxMon, s32 field, const void *dataArg)
         break;
     case MON_DATA_ABILITY_OVERRIDE:
         SET16(substruct0->abilityOverride);
+        break;
+    case MON_DATA_LEVEL_UP_LEARNSET_OVERRIDE:
+        // Plaintext BoxPokemon field, not a substruct one — see the GetBoxMonData3 case above.
+        SET8(boxMon->levelUpLearnsetOverride);
         break;
     case MON_DATA_MOVE1:
     case MON_DATA_MOVE2:

@@ -239,7 +239,17 @@
 #define VAR_MYSTERY_GIFT_5         0x40BA
 #define VAR_MYSTERY_GIFT_6         0x40BB
 #define VAR_MYSTERY_GIFT_7         0x40BC
-#define VAR_0x40BD                 0x40BD
+// LOTAD: was VAR_0x40BD — confirmed zero references anywhere in the repo before renaming.
+// TEMP_VARS_START..TEMP_VARS_END (0x4000-0x400F) is fully allocated (all 16 VAR_TEMP_x slots
+// are already spoken for by the Starter Builder's other setvar lines: species, personality, IVs,
+// moves, item, EV headstart, and the All-Gen ability override), so this is a genuinely-unused
+// slot from further out in the same underlying SaveBlock1.vars[VARS_COUNT] array
+// (VARS_COUNT = VARS_END - VARS_START + 1 = 0x100, i.e. the array already covers this address —
+// no struct/size change needed) rather than a new VAR_TEMP_10. Same one-shot scratch-register
+// role as the real VAR_TEMP_x vars: set once by scripts.inc immediately before
+// `callnative GiveCustomStarter`, read once by GiveCustomStarter (src/custom_starter.c), never
+// relied on to persist or to be auto-cleared afterward.
+#define VAR_TEMP_LEVEL_UP_LEARNSET_OVERRIDE 0x40BD
 #define VAR_0x40BE                 0x40BE
 #define VAR_0x40BF                 0x40BF
 #define VAR_0x40C0                 0x40C0
