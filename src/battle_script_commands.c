@@ -996,7 +996,12 @@ static bool8 AccuracyCalcHelper(u16 move)
 
     gHitMarker &= ~HITMARKER_IGNORE_UNDERWATER;
 
+    // LOTAD: Gen 4+ Blizzard never misses in hail; Gen 5 never-miss moves (Bide, Struggle, Mind Reader,
+    // Foresight, Lock-On, Odor Sleuth) ignore accuracy/evasion stages.
     if ((WEATHER_HAS_EFFECT && (gBattleWeather & B_WEATHER_RAIN) && gBattleMoves[move].effect == EFFECT_THUNDER)
+     || (WEATHER_HAS_EFFECT && (gBattleWeather & B_WEATHER_HAIL) && move == MOVE_BLIZZARD)
+     || move == MOVE_BIDE || move == MOVE_STRUGGLE || move == MOVE_MIND_READER
+     || move == MOVE_FORESIGHT || move == MOVE_LOCK_ON || move == MOVE_ODOR_SLEUTH
      || (gBattleMoves[move].effect == EFFECT_ALWAYS_HIT || gBattleMoves[move].effect == EFFECT_VITAL_THROW))
     {
         JumpIfMoveFailed(7, move);
@@ -2522,7 +2527,10 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 }
                 break;
             case MOVE_EFFECT_RECOIL_25: // 25% recoil
-                gBattleMoveDamage = (gHpDealt) / 4;
+                if (gCurrentMove == MOVE_STRUGGLE)
+                    gBattleMoveDamage = gBattleMons[gBattlerAttacker].maxHP / 4; // LOTAD: Gen 5 Struggle recoil = 1/4 max HP
+                else
+                    gBattleMoveDamage = (gHpDealt) / 4;
                 if (gBattleMoveDamage == 0)
                     gBattleMoveDamage = 1;
 
@@ -6541,11 +6549,10 @@ static void Cmd_manipulatedamage(void)
         gBattleMoveDamage *= -1;
         break;
     case DMG_RECOIL_FROM_MISS:
-        gBattleMoveDamage /= 2;
+        // LOTAD: Gen 5 Jump Kick / Hi Jump Kick crash damage is always half the USER's max HP (rounded down)
+        gBattleMoveDamage = gBattleMons[gBattlerAttacker].maxHP / 2;
         if (gBattleMoveDamage == 0)
             gBattleMoveDamage = 1;
-        if ((gBattleMons[gBattlerTarget].maxHP / 2) < gBattleMoveDamage)
-            gBattleMoveDamage = gBattleMons[gBattlerTarget].maxHP / 2;
         break;
     case DMG_DOUBLED:
         gBattleMoveDamage *= 2;
@@ -6747,7 +6754,7 @@ static void Cmd_stockpiletohpheal(void)
 
 static void Cmd_negativedamage(void)
 {
-    gBattleMoveDamage = -(gHpDealt / 2);
+    gBattleMoveDamage = -((gHpDealt + 1) / 2); // LOTAD: Gen 5 drain rounds half up (was floor)
     if (gBattleMoveDamage == 0)
         gBattleMoveDamage = -1;
 
@@ -8296,7 +8303,7 @@ static void Cmd_furycuttercalc(void)
     {
         s32 i;
 
-        if (gDisableStructs[gBattlerAttacker].furyCutterCounter != 5)
+        if (gDisableStructs[gBattlerAttacker].furyCutterCounter != 4) // LOTAD: Gen 5 Fury Cutter caps at 8x (20 -> 160)
             gDisableStructs[gBattlerAttacker].furyCutterCounter++;
 
         gDynamicBasePower = gBattleMoves[gCurrentMove].power;
