@@ -702,7 +702,9 @@ static const struct SpriteTemplate sSpriteTemplate_MonIconOnLvlUpBanner =
     .callback = SpriteCB_MonIconOnLvlUpBanner
 };
 
-static const u16 sProtectSuccessRates[] = {USHRT_MAX, USHRT_MAX / 2, USHRT_MAX / 4, USHRT_MAX / 8};
+// LOTAD: Gen 5 Protect/Detect/Endure chain halves each consecutive use down to 1/256 (Gen 3 stopped at 1/8,
+// and protectUses was never capped, so a 5th consecutive use read past the end of this table).
+static const u16 sProtectSuccessRates[] = {USHRT_MAX, USHRT_MAX / 2, USHRT_MAX / 4, USHRT_MAX / 8, USHRT_MAX / 16, USHRT_MAX / 32, USHRT_MAX / 64, USHRT_MAX / 128, USHRT_MAX / 256};
 
 #define MIMIC_FORBIDDEN_END             0xFFFE
 #define METRONOME_FORBIDDEN_END         0xFFFF
@@ -2367,7 +2369,7 @@ void SetMoveEffect(bool8 primary, u8 certain)
             BattleScriptPush(gBattlescriptCurrInstr + 1);
 
             if (sStatusFlagsForMoveEffects[gBattleCommunication[MOVE_EFFECT_BYTE]] == STATUS1_SLEEP)
-                gBattleMons[gEffectBattler].status1 |= STATUS1_SLEEP_TURN((Random() & 3) + 2); // 2-5 turns
+                gBattleMons[gEffectBattler].status1 |= STATUS1_SLEEP_TURN((Random() % 3) + 2); // LOTAD: Gen 5 sleep counter 2-4 (was 2-5)
             else
                 gBattleMons[gEffectBattler].status1 |= sStatusFlagsForMoveEffects[gBattleCommunication[MOVE_EFFECT_BYTE]];
 
@@ -2456,7 +2458,7 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 {
                     gBattleMons[gEffectBattler].status2 |= STATUS2_MULTIPLETURNS;
                     gLockedMoves[gEffectBattler] = gCurrentMove;
-                    gBattleMons[gEffectBattler].status2 |= STATUS2_UPROAR_TURN((Random() & 3) + 2); // 2-5 turns
+                    gBattleMons[gEffectBattler].status2 |= STATUS2_UPROAR_TURN(3); // LOTAD: Gen 5 Uproar lasts exactly 3 turns (was 2-5)
 
                     BattleScriptPush(gBattlescriptCurrInstr + 1);
                     gBattlescriptCurrInstr = sMoveEffectBS_Ptrs[gBattleCommunication[MOVE_EFFECT_BYTE]];
@@ -2501,7 +2503,7 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 }
                 else
                 {
-                    gBattleMons[gEffectBattler].status2 |= STATUS2_WRAPPED_TURN((Random() & 3) + 3); // 3-6 turns
+                    gBattleMons[gEffectBattler].status2 |= STATUS2_WRAPPED_TURN((Random() & 1) + 5); // LOTAD: Gen 5 trap counter 5-6 = 4-5 damage turns (was 3-6 = 2-5)
 
                     *(gBattleStruct->wrappedMove + gEffectBattler * 2 + 0) = gCurrentMove;
                     *(gBattleStruct->wrappedMove + gEffectBattler * 2 + 1) = gCurrentMove >> 8;
@@ -6311,7 +6313,8 @@ static void Cmd_setprotectlike(void)
             gProtectStructs[gBattlerAttacker].endured = 1;
             gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_BRACED_ITSELF;
         }
-        gDisableStructs[gBattlerAttacker].protectUses++;
+        if (gDisableStructs[gBattlerAttacker].protectUses < ARRAY_COUNT(sProtectSuccessRates) - 1)
+            gDisableStructs[gBattlerAttacker].protectUses++;
     }
     else
     {
@@ -7716,6 +7719,13 @@ static void Cmd_mirrorcoatdamagecalculator(void)
     }
 }
 
+// LOTAD: Gen 5 Disable/Taunt last one extra turn when the target has already acted this turn
+// (the current turn then does not count against the effect).
+static u8 GetTargetActedBonus(void)
+{
+    return (GetBattlerTurnOrderNum(gBattlerTarget) < gCurrentTurnActionNumber) ? 1 : 0;
+}
+
 static void Cmd_disablelastusedattack(void)
 {
     s32 i;
@@ -7731,7 +7741,7 @@ static void Cmd_disablelastusedattack(void)
         PREPARE_MOVE_BUFFER(gBattleTextBuff1, gBattleMons[gBattlerTarget].moves[i])
 
         gDisableStructs[gBattlerTarget].disabledMove = gBattleMons[gBattlerTarget].moves[i];
-        gDisableStructs[gBattlerTarget].disableTimer = (Random() & 3) + 2;
+        gDisableStructs[gBattlerTarget].disableTimer = 4 + GetTargetActedBonus(); // LOTAD: Gen 5 Disable = 4 turns (was 2-5)
         gDisableStructs[gBattlerTarget].disableTimerStartValue = gDisableStructs[gBattlerTarget].disableTimer; // used to save the random amount of turns?
         gBattlescriptCurrInstr += 5;
     }
@@ -7763,7 +7773,7 @@ static void Cmd_trysetencore(void)
     {
         gDisableStructs[gBattlerTarget].encoredMove = gBattleMons[gBattlerTarget].moves[i];
         gDisableStructs[gBattlerTarget].encoredMovePos = i;
-        gDisableStructs[gBattlerTarget].encoreTimer = (Random() & 3) + 3;
+        gDisableStructs[gBattlerTarget].encoreTimer = 3; // LOTAD: Gen 5 Encore lasts exactly 3 turns (was 3-6)
         gDisableStructs[gBattlerTarget].encoreTimerStartValue = gDisableStructs[gBattlerTarget].encoreTimer;
         gBattlescriptCurrInstr += 5;
     }
@@ -8055,9 +8065,10 @@ static void Cmd_tryspiteppreduce(void)
                 break;
         }
 
-        if (i != MAX_MON_MOVES && gBattleMons[gBattlerTarget].pp[i] > 1)
+        // LOTAD: Gen 4+ Spite takes exactly 4 PP (or whatever is left) and no longer fails at 1 PP
+        if (i != MAX_MON_MOVES && gBattleMons[gBattlerTarget].pp[i] > 0)
         {
-            s32 ppToDeduct = (Random() & 3) + 2;
+            s32 ppToDeduct = 4;
             if (gBattleMons[gBattlerTarget].pp[i] < ppToDeduct)
                 ppToDeduct = gBattleMons[gBattlerTarget].pp[i];
 
@@ -8838,8 +8849,9 @@ static void Cmd_settaunt(void)
 {
     if (gDisableStructs[gBattlerTarget].tauntTimer == 0)
     {
-        gDisableStructs[gBattlerTarget].tauntTimer = 2;
-        gDisableStructs[gBattlerTarget].tauntTimer2 = 2;
+        // LOTAD: Gen 5 Taunt = 3 turns (4 if the target already acted this turn); was 2
+        gDisableStructs[gBattlerTarget].tauntTimer = 3 + GetTargetActedBonus();
+        gDisableStructs[gBattlerTarget].tauntTimer2 = 3 + GetTargetActedBonus();
         gBattlescriptCurrInstr += 5;
     }
     else
