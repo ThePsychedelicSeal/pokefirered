@@ -495,9 +495,47 @@ BattleScript_EffectDefenseUp::
 	setstatchanger STAT_DEF, 1, FALSE
 	goto BattleScript_EffectStatUp
 
+@ LOTAD: Gen 5 Growth - raises Attack and Sp. Atk by 1 stage each (2 each in harsh sunlight)
 BattleScript_EffectSpecialAttackUp::
+	attackcanceler
+	attackstring
+	ppreduce
+	jumpifstat BS_ATTACKER, CMP_LESS_THAN, STAT_ATK, MAX_STAT_STAGE, BattleScript_GrowthDoMoveAnim
+	jumpifstat BS_ATTACKER, CMP_EQUAL, STAT_SPATK, MAX_STAT_STAGE, BattleScript_CantRaiseMultipleStats
+BattleScript_GrowthDoMoveAnim::
+	attackanimation
+	waitanimation
+	setbyte sSTAT_ANIM_PLAYED, FALSE
+	playstatchangeanimation BS_ATTACKER, BIT_ATK | BIT_SPATK, 0
+	jumpifabilitypresent ABILITY_CLOUD_NINE, BattleScript_GrowthAtkNormal
+	jumpifabilitypresent ABILITY_AIR_LOCK, BattleScript_GrowthAtkNormal
+	jumpifhalfword CMP_COMMON_BITS, gBattleWeather, B_WEATHER_SUN, BattleScript_GrowthAtkSun
+BattleScript_GrowthAtkNormal::
+	setstatchanger STAT_ATK, 1, FALSE
+	goto BattleScript_GrowthAtkDo
+BattleScript_GrowthAtkSun::
+	setstatchanger STAT_ATK, 2, FALSE
+BattleScript_GrowthAtkDo::
+	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_ALLOW_PTR, BattleScript_GrowthTrySpAtk
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_GrowthTrySpAtk
+	printfromtable gStatUpStringIds
+	waitmessage B_WAIT_TIME_LONG
+BattleScript_GrowthTrySpAtk::
+	jumpifabilitypresent ABILITY_CLOUD_NINE, BattleScript_GrowthSpAtkNormal
+	jumpifabilitypresent ABILITY_AIR_LOCK, BattleScript_GrowthSpAtkNormal
+	jumpifhalfword CMP_COMMON_BITS, gBattleWeather, B_WEATHER_SUN, BattleScript_GrowthSpAtkSun
+BattleScript_GrowthSpAtkNormal::
 	setstatchanger STAT_SPATK, 1, FALSE
-	goto BattleScript_EffectStatUp
+	goto BattleScript_GrowthSpAtkDo
+BattleScript_GrowthSpAtkSun::
+	setstatchanger STAT_SPATK, 2, FALSE
+BattleScript_GrowthSpAtkDo::
+	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_ALLOW_PTR, BattleScript_GrowthEnd
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_GrowthEnd
+	printfromtable gStatUpStringIds
+	waitmessage B_WAIT_TIME_LONG
+BattleScript_GrowthEnd::
+	goto BattleScript_MoveEnd
 
 BattleScript_EffectEvasionUp::
 	setstatchanger STAT_EVASION, 1, FALSE
@@ -948,7 +986,7 @@ BattleScript_EffectSpeedUp2::
 	goto BattleScript_EffectStatUp
 
 BattleScript_EffectSpecialAttackUp2::
-	setstatchanger STAT_SPATK, 2, FALSE
+	setstatchanger STAT_SPATK, 3, FALSE @ LOTAD: Gen 5 Tail Glow is +3
 	goto BattleScript_EffectStatUp
 
 BattleScript_EffectSpecialDefenseUp2::
@@ -1956,10 +1994,10 @@ BattleScript_EffectBeatUp::
 BattleScript_BeatUpLoop::
 	movevaluescleanup
 	trydobeatup BattleScript_BeatUpEnd, BattleScript_ButItFailed
-	printstring STRINGID_PKMNATTACK
+	@ LOTAD: Gen 5 Beat Up - normal damage path (user's Attack, STAB, type effectiveness, crits); no per-attacker message
 	critcalc
-	jumpifbyte CMP_NOT_EQUAL, gCritMultiplier, 2, BattleScript_BeatUpAttack
-	manipulatedamage DMG_DOUBLED
+	damagecalc
+	typecalc
 BattleScript_BeatUpAttack::
 	adjustnormaldamage
 	attackanimation
@@ -2330,6 +2368,14 @@ BattleScript_EffectCharge::
 	waitanimation
 	printstring STRINGID_PKMNCHARGINGPOWER
 	waitmessage B_WAIT_TIME_LONG
+	@ LOTAD: Gen 4+ Charge also raises the user's Sp. Def by 1 stage
+	setstatchanger STAT_SPDEF, 1, FALSE
+	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_ALLOW_PTR, BattleScript_MoveEnd
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_MoveEnd
+	setgraphicalstatchangevalues
+	playanimation BS_ATTACKER, B_ANIM_STATS_CHANGE, sB_ANIM_ARG1
+	printfromtable gStatUpStringIds
+	waitmessage B_WAIT_TIME_LONG
 	goto BattleScript_MoveEnd
 
 BattleScript_EffectTaunt::
@@ -2592,8 +2638,37 @@ BattleScript_EffectSecretPower::
 	goto BattleScript_EffectHit
 
 BattleScript_EffectDoubleEdge::
+	jumpifmove MOVE_VOLT_TACKLE, BattleScript_EffectVoltTackle
 	setmoveeffect MOVE_EFFECT_RECOIL_33 | MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN
 	goto BattleScript_EffectHit
+
+@ LOTAD: Gen 4+ Volt Tackle - recoil plus a 10% paralysis chance (one effect byte per hit, so two applications)
+BattleScript_EffectVoltTackle::
+	attackcanceler
+	accuracycheck BattleScript_PrintMoveMissed, ACC_CURR_MOVE
+	attackstring
+	ppreduce
+	critcalc
+	damagecalc
+	typecalc
+	adjustnormaldamage
+	attackanimation
+	waitanimation
+	effectivenesssound
+	hitanimation BS_TARGET
+	waitstate
+	healthbarupdate BS_TARGET
+	datahpupdate BS_TARGET
+	critmessage
+	waitmessage B_WAIT_TIME_LONG
+	resultmessage
+	waitmessage B_WAIT_TIME_LONG
+	setmoveeffect MOVE_EFFECT_RECOIL_33 | MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN
+	seteffectwithchance
+	setmoveeffect MOVE_EFFECT_PARALYSIS
+	seteffectwithchance
+	tryfaintmon BS_TARGET
+	goto BattleScript_MoveEnd
 
 BattleScript_EffectTeeterDance::
 	attackcanceler

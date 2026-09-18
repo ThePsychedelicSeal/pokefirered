@@ -6451,7 +6451,7 @@ static void Cmd_tryhealhalfhealth(void)
     if (gBattlescriptCurrInstr[5] == BS_ATTACKER)
         gBattlerTarget = gBattlerAttacker;
 
-    gBattleMoveDamage = gBattleMons[gBattlerTarget].maxHP / 2;
+    gBattleMoveDamage = (gBattleMons[gBattlerTarget].maxHP + 1) / 2; // LOTAD: Gen 5 half-heals round half up (was floor)
     if (gBattleMoveDamage == 0)
         gBattleMoveDamage = 1;
     gBattleMoveDamage *= -1;
@@ -6904,7 +6904,7 @@ static u8 ChangeStatBuffs(s8 statValue, u8 statId, u8 flags, const u8 *BS_ptr)
             statValue = -GET_STAT_BUFF_VALUE(statValue);
             gBattleTextBuff2[0] = B_BUFF_PLACEHOLDER_BEGIN;
             index = 1;
-            if (statValue == -2)
+            if (statValue <= -2) // LOTAD: was == -2; keeps "harshly" wording for larger drops
             {
                 gBattleTextBuff2[1] = B_BUFF_STRING;
                 gBattleTextBuff2[2] = STRINGID_STATHARSHLY;
@@ -6927,7 +6927,7 @@ static u8 ChangeStatBuffs(s8 statValue, u8 statId, u8 flags, const u8 *BS_ptr)
         statValue = GET_STAT_BUFF_VALUE(statValue);
         gBattleTextBuff2[0] = B_BUFF_PLACEHOLDER_BEGIN;
         index = 1;
-        if (statValue == 2)
+        if (statValue >= 2) // LOTAD: was == 2; Gen 5 Tail Glow is +3 and reuses the "sharply" wording
         {
             gBattleTextBuff2[1] = B_BUFF_STRING;
             gBattleTextBuff2[2] = STRINGID_STATSHARPLY;
@@ -8709,25 +8709,22 @@ static void Cmd_trydobeatup(void)
         u8 beforeLoop = gBattleCommunication[0];
         for (;gBattleCommunication[0] < PARTY_SIZE; gBattleCommunication[0]++)
         {
+            // LOTAD: Gen 5 - the user always takes part (even when statused); other members must be healthy
             if (GetMonData(&party[gBattleCommunication[0]], MON_DATA_HP)
                 && GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES_OR_EGG)
                 && GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES_OR_EGG) != SPECIES_EGG
-                && !GetMonData(&party[gBattleCommunication[0]], MON_DATA_STATUS))
+                && (gBattleCommunication[0] == gBattlerPartyIndexes[gBattlerAttacker]
+                    || !GetMonData(&party[gBattleCommunication[0]], MON_DATA_STATUS)))
                 break;
         }
         if (gBattleCommunication[0] < PARTY_SIZE)
         {
-            PREPARE_MON_NICK_WITH_PREFIX_BUFFER(gBattleTextBuff1, gBattlerAttacker, gBattleCommunication[0])
-
             gBattlescriptCurrInstr += 9;
 
-            gBattleMoveDamage = gSpeciesInfo[GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES)].baseAttack;
-            gBattleMoveDamage *= gBattleMoves[gCurrentMove].power;
-            gBattleMoveDamage *= (GetMonData(&party[gBattleCommunication[0]], MON_DATA_LEVEL) * 2 / 5 + 2);
-            gBattleMoveDamage /= gSpeciesInfo[gBattleMons[gBattlerTarget].species].baseDefense;
-            gBattleMoveDamage = (gBattleMoveDamage / 50) + 2;
-            if (gProtectStructs[gBattlerAttacker].helpingHand)
-                gBattleMoveDamage = gBattleMoveDamage * 15 / 10;
+            // LOTAD: Gen 5 Beat Up - each strike uses the USER's Attack vs the target's Defense through the normal
+            // damage path (STAB, Dark-type effectiveness, crits, Attack boosts); only the base power depends on the
+            // party member: 5 + baseAttack / 10. Damage itself is now computed by damagecalc in the script.
+            gDynamicBasePower = 5 + gSpeciesInfo[GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES)].baseAttack / 10;
 
             gBattleCommunication[0]++;
         }
