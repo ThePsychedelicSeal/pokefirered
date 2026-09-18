@@ -1054,6 +1054,7 @@ u8 DoBattlerEndTurnEffects(void)
                     {
                         CancelMultiTurnMoves(gActiveBattler);
                         gBattleMons[gActiveBattler].status1 |= STATUS1_SLEEP_TURN((Random() % 3) + 2); // LOTAD: Gen 5 sleep counter 2-4 (was 2-5)
+                        RecordSleepStart(gActiveBattler);
                         BtlController_EmitSetMonData(BUFFER_A, REQUEST_STATUS_BATTLE, 0, 4, &gBattleMons[gActiveBattler].status1);
                         MarkBattlerForControllerExec(gActiveBattler);
                         gEffectBattler = gActiveBattler;
@@ -1657,6 +1658,26 @@ u8 CastformDataTypeChange(u8 battler)
         formChange = CASTFORM_TO_ICE;
     }
     return formChange;
+}
+
+// LOTAD: Gen 5 sleep - remember the counter a Pokemon fell asleep with (incl. Rest), and put it back when that
+// Pokemon switches out and in again. Called right after a sleep status is applied.
+void RecordSleepStart(u8 battler)
+{
+    u8 counter = gBattleMons[battler].status1 & STATUS1_SLEEP;
+
+    if (counter != 0 && gBattlerPartyIndexes[battler] < PARTY_SIZE)
+        gBattleStruct->sleepOrigCounter[GetBattlerSide(battler)][gBattlerPartyIndexes[battler]] = counter;
+}
+
+void RestoreSleepCounterOnSwitchIn(u8 battler)
+{
+    u8 orig = 0;
+
+    if (gBattlerPartyIndexes[battler] < PARTY_SIZE)
+        orig = gBattleStruct->sleepOrigCounter[GetBattlerSide(battler)][gBattlerPartyIndexes[battler]];
+    if (orig != 0 && (gBattleMons[battler].status1 & STATUS1_SLEEP))
+        gBattleMons[battler].status1 = (gBattleMons[battler].status1 & ~STATUS1_SLEEP) | orig;
 }
 
 // LOTAD: Gen 5 Effect Spore - 30% total: 11% sleep, 10% paralysis, 9% poison (Gen 3 was 10%, equal thirds).

@@ -39,6 +39,10 @@
 #define ABILITY_ON_FIELD(abilityId)(AbilityBattleEffects(ABILITYEFFECT_CHECK_ON_FIELD, 0, abilityId, 0, 0))
 #define ABILITY_ON_FIELD2(abilityId)(AbilityBattleEffects(ABILITYEFFECT_FIELD_SPORT, 0, abilityId, 0, 0))
 
+// LOTAD: Gen 5 sleep counter reset on switch-out (see battle_util.c)
+void RecordSleepStart(u8 battler);
+void RestoreSleepCounterOnSwitchIn(u8 battler);
+
 // For the first argument of ItemBattleEffects, to deteremine which block of item effects to try
 #define ITEMEFFECT_ON_SWITCH_IN                 0
 #define ITEMEFFECT_NORMAL                       1

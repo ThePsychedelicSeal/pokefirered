@@ -455,7 +455,10 @@ struct BattleStruct
         struct LinkBattlerHeader linkBattlerHeader;
         struct MultiBattlePokemonTx multiBattleMons[3];
     } multiBuffer;
-    u8 padding_1E4[0x1C];
+    // LOTAD: Gen 5 - original sleep counter per side/party slot, restored when a sleeping mon switches back in
+    // (carved out of the old padding so sizeof(struct BattleStruct) stays 0x200)
+    u8 sleepOrigCounter[2][PARTY_SIZE];
+    u8 padding_1F0[0x10];
 }; // size == 0x200 bytes
 
 extern struct BattleStruct *gBattleStruct;

@@ -2377,6 +2377,7 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 gBattleMons[gEffectBattler].status1 |= STATUS1_SLEEP_TURN((Random() % 3) + 2); // LOTAD: Gen 5 sleep counter 2-4 (was 2-5)
             else
                 gBattleMons[gEffectBattler].status1 |= sStatusFlagsForMoveEffects[gBattleCommunication[MOVE_EFFECT_BYTE]];
+            RecordSleepStart(gEffectBattler); // LOTAD: remember the original sleep counter (no-op unless asleep)
 
             gBattlescriptCurrInstr = sMoveEffectBS_Ptrs[gBattleCommunication[MOVE_EFFECT_BYTE]];
 
@@ -4604,6 +4605,8 @@ static void Cmd_switchindataupdate(void)
         gBattleMons[gActiveBattler].item = ITEM_NONE;
     }
 
+    RestoreSleepCounterOnSwitchIn(gActiveBattler); // LOTAD: Gen 5 - a sleeping mon's counter resets when it switches back in
+
     if (gBattleMoves[gCurrentMove].effect == EFFECT_BATON_PASS)
     {
         for (i = 0; i < NUM_BATTLE_STATS; i++)
@@ -6613,6 +6616,7 @@ static void Cmd_trysetrest(void)
             gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_REST;
 
         gBattleMons[gBattlerTarget].status1 = STATUS1_SLEEP_TURN(3);
+        RecordSleepStart(gBattlerTarget); // LOTAD: Rest's counter is also restored on switch-out
         BtlController_EmitSetMonData(BUFFER_A, REQUEST_STATUS_BATTLE, 0, sizeof(gBattleMons[gActiveBattler].status1), &gBattleMons[gActiveBattler].status1);
         MarkBattlerForControllerExec(gActiveBattler);
         gBattlescriptCurrInstr += 5;
