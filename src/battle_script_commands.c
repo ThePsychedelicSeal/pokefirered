@@ -2795,9 +2795,41 @@ void SetMoveEffect(bool8 primary, u8 certain)
     }
 }
 
+// LOTAD: Gen 5 multi-hit moves roll Stench once per strike (from Cmd_decrementmultihit), not once at the end.
+static bool8 IsMultiHitEffect(u8 effect)
+{
+    return effect == EFFECT_MULTI_HIT || effect == EFFECT_DOUBLE_HIT
+        || effect == EFFECT_TWINEEDLE || effect == EFFECT_TRIPLE_KICK;
+}
+
+// LOTAD: Gen 5 Stench - damaging moves have a 10% chance to flinch the target. Does not stack with a move's own
+// flinch chance or King's Rock, and is blocked by Substitute, Inner Focus and Shield Dust.
+static void TryStenchFlinch(void)
+{
+    u16 effectByte = gBattleCommunication[MOVE_EFFECT_BYTE] & ~(MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN);
+
+    if (gBattleMons[gBattlerAttacker].ability != ABILITY_STENCH
+     || gBattlerTarget == gBattlerAttacker
+     || gBattleMoves[gCurrentMove].power == 0
+     || (gMoveResultFlags & MOVE_RESULT_NO_EFFECT)
+     || gBattleMons[gBattlerTarget].hp == 0
+     || (gBattleMons[gBattlerTarget].status2 & (STATUS2_SUBSTITUTE | STATUS2_FLINCHED))
+     || gBattleMons[gBattlerTarget].ability == ABILITY_INNER_FOCUS
+     || gBattleMons[gBattlerTarget].ability == ABILITY_SHIELD_DUST
+     || effectByte == MOVE_EFFECT_FLINCH
+     || ItemId_GetHoldEffect(gBattleMons[gBattlerAttacker].item) == HOLD_EFFECT_FLINCH)
+        return;
+
+    if ((Random() % 100) < 10 && GetBattlerTurnOrderNum(gBattlerTarget) > gCurrentTurnActionNumber)
+        gBattleMons[gBattlerTarget].status2 |= STATUS2_FLINCHED;
+}
+
 static void Cmd_seteffectwithchance(void)
 {
     u32 percentChance;
+
+    if (!IsMultiHitEffect(gBattleMoves[gCurrentMove].effect))
+        TryStenchFlinch();
 
     if (gBattleMons[gBattlerAttacker].ability == ABILITY_SERENE_GRACE)
         percentChance = gBattleMoves[gCurrentMove].secondaryEffectChance * 2;
@@ -3564,6 +3596,7 @@ static void Cmd_setmultihit(void)
 
 static void Cmd_decrementmultihit(void)
 {
+    TryStenchFlinch(); // LOTAD: Gen 5 Stench rolls on every strike of a multi-hit move
     if (--gMultiHitCounter == 0)
         gBattlescriptCurrInstr += 5;
     else

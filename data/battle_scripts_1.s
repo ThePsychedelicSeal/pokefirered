@@ -456,12 +456,23 @@ BattleScript_DreamEaterWorked:
 	waitmessage B_WAIT_TIME_LONG
 	negativedamage
 	orword gHitMarker, HITMARKER_IGNORE_SUBSTITUTE
+	@ LOTAD: Gen 5 - Liquid Ooze also damages a Dream Eater user
+	jumpifability BS_TARGET, ABILITY_LIQUID_OOZE, BattleScript_DreamEaterLiquidOoze
 	healthbarupdate BS_ATTACKER
 	datahpupdate BS_ATTACKER
 	jumpifmovehadnoeffect BattleScript_DreamEaterTryFaintEnd
 	printstring STRINGID_PKMNDREAMEATEN
 	waitmessage B_WAIT_TIME_LONG
 BattleScript_DreamEaterTryFaintEnd:
+	tryfaintmon BS_TARGET
+	goto BattleScript_MoveEnd
+BattleScript_DreamEaterLiquidOoze::
+	manipulatedamage DMG_CHANGE_SIGN
+	healthbarupdate BS_ATTACKER
+	datahpupdate BS_ATTACKER
+	printstring STRINGID_ITSUCKEDLIQUIDOOZE
+	waitmessage B_WAIT_TIME_LONG
+	tryfaintmon BS_ATTACKER
 	tryfaintmon BS_TARGET
 	goto BattleScript_MoveEnd
 
@@ -4097,6 +4108,25 @@ BattleScript_FlashFireBoost::
 	attackstring
 	pause B_WAIT_TIME_SHORT
 	printfromtable gFlashFireStringIds
+	waitmessage B_WAIT_TIME_LONG
+	goto BattleScript_MoveEnd
+
+@ LOTAD: Gen 5 Lightning Rod (singles). The absorber is BS_TARGET; +1 Sp. Atk, or "made it ineffective" if maxed.
+BattleScript_LightningRodAbsorb_PPLoss::
+	ppreduce
+BattleScript_LightningRodAbsorb::
+	attackstring
+	pause B_WAIT_TIME_SHORT
+	setstatchanger STAT_SPATK, 1, FALSE
+	statbuffchange STAT_CHANGE_ALLOW_PTR, BattleScript_LightningRodAbsorbNoBoost
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_LightningRodAbsorbNoBoost
+	setgraphicalstatchangevalues
+	playanimation BS_TARGET, B_ANIM_STATS_CHANGE, sB_ANIM_ARG1
+	printstring STRINGID_PKMNRAISEDSPATKWITH
+	waitmessage B_WAIT_TIME_LONG
+	goto BattleScript_MoveEnd
+BattleScript_LightningRodAbsorbNoBoost::
+	printstring STRINGID_PKMNSXMADEYINEFFECTIVE
 	waitmessage B_WAIT_TIME_LONG
 	goto BattleScript_MoveEnd
 

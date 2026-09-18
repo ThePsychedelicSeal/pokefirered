@@ -1973,6 +1973,19 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                         }
                     }
                     break;
+                // LOTAD: Gen 5 Lightning Rod in singles - immune to any Electric move (Thunder Wave included) and
+                // gains +1 Sp. Atk. Ground-type holders keep their normal immunity and get no boost.
+                case ABILITY_LIGHTNING_ROD:
+                    if (moveType == TYPE_ELECTRIC && !IS_BATTLER_OF_TYPE(battler, TYPE_GROUND))
+                    {
+                        if (gProtectStructs[gBattlerAttacker].notFirstStrike)
+                            gBattlescriptCurrInstr = BattleScript_LightningRodAbsorb;
+                        else
+                            gBattlescriptCurrInstr = BattleScript_LightningRodAbsorb_PPLoss;
+
+                        effect = 2;
+                    }
+                    break;
                 }
                 if (effect == 1)
                 {
