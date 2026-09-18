@@ -2800,7 +2800,10 @@ static void Cmd_seteffectwithchance(void)
         gBattleCommunication[MOVE_EFFECT_BYTE] &= ~MOVE_EFFECT_CERTAIN;
         SetMoveEffect(FALSE, MOVE_EFFECT_CERTAIN);
     }
-    else if (Random() % 100 <= percentChance
+    // LOTAD: was "<= percentChance", which made every secondary effect chance N+1% (and, with a stale
+    // MOVE_EFFECT_BYTE after a multi-hit move, gave a 1% chance to hit the defender with a contact
+    // ability's status). Gen 5 chances are exactly N%.
+    else if (Random() % 100 < percentChance
              && gBattleCommunication[MOVE_EFFECT_BYTE]
              && !(gMoveResultFlags & MOVE_RESULT_NO_EFFECT))
     {
@@ -8108,32 +8111,17 @@ static void Cmd_healpartystatus(void)
         else
             party = gEnemyParty;
 
-        if (gBattleMons[gBattlerAttacker].ability != ABILITY_SOUNDPROOF)
-        {
-            gBattleMons[gBattlerAttacker].status1 = 0;
-            gBattleMons[gBattlerAttacker].status2 &= ~STATUS2_NIGHTMARE;
-        }
-        else
-        {
-            RecordAbilityBattle(gBattlerAttacker, gBattleMons[gBattlerAttacker].ability);
-            gBattleCommunication[MULTISTRING_CHOOSER] |= B_MSG_BELL_SOUNDPROOF_ATTACKER;
-        }
+        // LOTAD: Gen 5 Heal Bell also cures Soundproof Pokemon (no Soundproof exceptions below)
+        gBattleMons[gBattlerAttacker].status1 = 0;
+        gBattleMons[gBattlerAttacker].status2 &= ~STATUS2_NIGHTMARE;
 
         gActiveBattler = gBattleScripting.battler = GetBattlerAtPosition(GetBattlerPosition(gBattlerAttacker) ^ BIT_FLANK);
 
         if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE
             && !(gAbsentBattlerFlags & gBitTable[gActiveBattler]))
         {
-            if (gBattleMons[gActiveBattler].ability != ABILITY_SOUNDPROOF)
-            {
-                gBattleMons[gActiveBattler].status1 = 0;
-                gBattleMons[gActiveBattler].status2 &= ~STATUS2_NIGHTMARE;
-            }
-            else
-            {
-                RecordAbilityBattle(gActiveBattler, gBattleMons[gActiveBattler].ability);
-                gBattleCommunication[MULTISTRING_CHOOSER] |= B_MSG_BELL_SOUNDPROOF_PARTNER;
-            }
+            gBattleMons[gActiveBattler].status1 = 0;
+            gBattleMons[gActiveBattler].status2 &= ~STATUS2_NIGHTMARE;
         }
 
         // Because the above MULTISTRING_CHOOSER are ORd, if both are set then it will be B_MSG_BELL_BOTH_SOUNDPROOF
@@ -8141,24 +8129,9 @@ static void Cmd_healpartystatus(void)
         for (i = 0; i < PARTY_SIZE; i++)
         {
             u16 species = GetMonData(&party[i], MON_DATA_SPECIES_OR_EGG);
-            u8 abilityNum = GetMonData(&party[i], MON_DATA_ABILITY_NUM);
 
             if (species != SPECIES_NONE && species != SPECIES_EGG)
-            {
-                u8 ability;
-
-                if (gBattlerPartyIndexes[gBattlerAttacker] == i)
-                    ability = gBattleMons[gBattlerAttacker].ability;
-                else if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE
-                         && gBattlerPartyIndexes[gActiveBattler] == i
-                         && !(gAbsentBattlerFlags & gBitTable[gActiveBattler]))
-                    ability = gBattleMons[gActiveBattler].ability;
-                else
-                    ability = GetAbilityBySpecies(species, abilityNum);
-
-                if (ability != ABILITY_SOUNDPROOF)
-                    toHeal |= (1 << i);
-            }
+                toHeal |= (1 << i);
         }
     }
     else // Aromatherapy

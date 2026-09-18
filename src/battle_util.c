@@ -1659,6 +1659,21 @@ u8 CastformDataTypeChange(u8 battler)
     return formChange;
 }
 
+// LOTAD: Gen 5 Effect Spore - 30% total: 11% sleep, 10% paralysis, 9% poison (Gen 3 was 10%, equal thirds).
+// Returns the MOVE_EFFECT to inflict on the attacker, or 0 for no effect.
+static u8 GetEffectSporeMoveEffect(void)
+{
+    u32 roll = Random() % 100;
+
+    if (roll < 11)
+        return MOVE_EFFECT_SLEEP;
+    if (roll < 21)
+        return MOVE_EFFECT_PARALYSIS;
+    if (roll < 30)
+        return MOVE_EFFECT_POISON;
+    return 0;
+}
+
 u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveArg)
 {
     u8 effect = 0;
@@ -1910,7 +1925,8 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                 switch (gLastUsedAbility)
                 {
                 case ABILITY_VOLT_ABSORB:
-                    if (moveType == TYPE_ELECTRIC && gBattleMoves[move].power != 0)
+                    // LOTAD: Gen 5 Volt Absorb also absorbs Thunder Wave (no power != 0 requirement)
+                    if (moveType == TYPE_ELECTRIC)
                     {
                         if (gProtectStructs[gBattlerAttacker].notFirstStrike)
                             gBattlescriptCurrInstr = BattleScript_MoveHPDrain;
@@ -2002,7 +2018,7 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                  && TARGET_TURN_DAMAGED
                  && (gBattleMoves[move].flags & FLAG_MAKES_CONTACT))
                 {
-                    gBattleMoveDamage = gBattleMons[gBattlerAttacker].maxHP / 16;
+                    gBattleMoveDamage = gBattleMons[gBattlerAttacker].maxHP / 8; // LOTAD: Gen 5 Rough Skin is 1/8 (was 1/16)
                     if (gBattleMoveDamage == 0)
                         gBattleMoveDamage = 1;
                     BattleScriptPushCursor();
@@ -2016,16 +2032,8 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                  && !gProtectStructs[gBattlerAttacker].confusionSelfDmg
                  && TARGET_TURN_DAMAGED
                  && (gBattleMoves[move].flags & FLAG_MAKES_CONTACT)
-                 && (Random() % 10) == 0)
+                 && (gBattleCommunication[MOVE_EFFECT_BYTE] = GetEffectSporeMoveEffect()) != 0)
                 {
-                    do
-                    {
-                        gBattleCommunication[MOVE_EFFECT_BYTE] = Random() & 3;
-                    } while (gBattleCommunication[MOVE_EFFECT_BYTE] == 0);
-
-                    if (gBattleCommunication[MOVE_EFFECT_BYTE] == MOVE_EFFECT_BURN)
-                        gBattleCommunication[MOVE_EFFECT_BYTE] += 2; // 5 MOVE_EFFECT_PARALYSIS
-
                     gBattleCommunication[MOVE_EFFECT_BYTE] += MOVE_EFFECT_AFFECTS_USER;
                     BattleScriptPushCursor();
                     gBattlescriptCurrInstr = BattleScript_ApplySecondaryEffect;
@@ -2033,13 +2041,14 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                     effect++;
                 }
                 break;
+            // LOTAD: Gen 5 - Poison Point / Static / Flame Body / Cute Charm trigger 30% (was 1/3)
             case ABILITY_POISON_POINT:
                 if (!(gMoveResultFlags & MOVE_RESULT_NO_EFFECT)
                  && gBattleMons[gBattlerAttacker].hp != 0
                  && !gProtectStructs[gBattlerAttacker].confusionSelfDmg
                  && TARGET_TURN_DAMAGED
                  && (gBattleMoves[move].flags & FLAG_MAKES_CONTACT)
-                 && (Random() % 3) == 0)
+                 && (Random() % 10) < 3)
                 {
                     gBattleCommunication[MOVE_EFFECT_BYTE] = MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_POISON;
                     BattleScriptPushCursor();
@@ -2054,7 +2063,7 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                  && !gProtectStructs[gBattlerAttacker].confusionSelfDmg
                  && TARGET_TURN_DAMAGED
                  && (gBattleMoves[move].flags & FLAG_MAKES_CONTACT)
-                 && (Random() % 3) == 0)
+                 && (Random() % 10) < 3)
                 {
                     gBattleCommunication[MOVE_EFFECT_BYTE] = MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_PARALYSIS;
                     BattleScriptPushCursor();
@@ -2069,7 +2078,7 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                  && !gProtectStructs[gBattlerAttacker].confusionSelfDmg
                  && (gBattleMoves[move].flags & FLAG_MAKES_CONTACT)
                  && TARGET_TURN_DAMAGED
-                 && (Random() % 3) == 0)
+                 && (Random() % 10) < 3)
                 {
                     gBattleCommunication[MOVE_EFFECT_BYTE] = MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_BURN;
                     BattleScriptPushCursor();
@@ -2085,7 +2094,7 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
                  && (gBattleMoves[move].flags & FLAG_MAKES_CONTACT)
                  && TARGET_TURN_DAMAGED
                  && gBattleMons[gBattlerTarget].hp != 0
-                 && (Random() % 3) == 0
+                 && (Random() % 10) < 3
                  && gBattleMons[gBattlerAttacker].ability != ABILITY_OBLIVIOUS
                  && GetGenderFromSpeciesAndPersonality(speciesAtk, pidAtk) != GetGenderFromSpeciesAndPersonality(speciesDef, pidDef)
                  && !(gBattleMons[gBattlerAttacker].status2 & STATUS2_INFATUATION)
@@ -2203,8 +2212,7 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
             {
                 gHitMarker &= ~HITMARKER_SYNCHRONISE_EFFECT;
                 gBattleStruct->synchronizeMoveEffect &= ~(MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN);
-                if (gBattleStruct->synchronizeMoveEffect == MOVE_EFFECT_TOXIC)
-                    gBattleStruct->synchronizeMoveEffect = MOVE_EFFECT_POISON;
+                // LOTAD: Gen 5 Synchronize passes on Toxic as-is (Gen 3 downgraded it to regular poison)
 
                 gBattleCommunication[MOVE_EFFECT_BYTE] = gBattleStruct->synchronizeMoveEffect + MOVE_EFFECT_AFFECTS_USER;
                 gBattleScripting.battler = gBattlerTarget;
@@ -2219,8 +2227,7 @@ u8 AbilityBattleEffects(u8 caseID, u8 battler, u8 ability, u8 special, u16 moveA
             {
                 gHitMarker &= ~HITMARKER_SYNCHRONISE_EFFECT;
                 gBattleStruct->synchronizeMoveEffect &= ~(MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN);
-                if (gBattleStruct->synchronizeMoveEffect == MOVE_EFFECT_TOXIC)
-                    gBattleStruct->synchronizeMoveEffect = MOVE_EFFECT_POISON;
+                // LOTAD: Gen 5 Synchronize passes on Toxic as-is (Gen 3 downgraded it to regular poison)
 
                 gBattleCommunication[MOVE_EFFECT_BYTE] = gBattleStruct->synchronizeMoveEffect;
                 gBattleScripting.battler = gBattlerAttacker;
