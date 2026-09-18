@@ -359,8 +359,14 @@
 
 // Gen 4+ move, added under the Gen 4/5 standing-practice policy (LOTAD Task 1 trainer audit: Muk's Sludge -> Poison Jab)
 #define MOVE_POISON_JAB 355
+#define MOVE_AQUA_TAIL 356
+#define MOVE_BRINE 357
+#define MOVE_AQUA_RING 358
 
-#define MOVES_COUNT 356
+// Gen 4 move added via the LOTAD Moves & Items tab
+#define MOVE_FLASH_CANNON 359
+
+#define MOVES_COUNT 360
 
 // Used for checks for moves affected by Disable, Mimic, etc.
 #define MOVE_UNAVAILABLE 0xFFFF

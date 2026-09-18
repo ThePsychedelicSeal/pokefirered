@@ -376,7 +376,11 @@ gBattleAnims_Moves::
 	.4byte Move_DOOM_DESIRE
 	.4byte Move_PSYCHO_BOOST
 	.4byte Move_POISON_TAIL @ Move_POISON_JAB reuses Poison Tail's animation
-	.4byte Move_COUNT @ cannot be reached, because last move is Poison Jab
+	.4byte Move_WATERFALL @ Move_AQUA_TAIL reuses Waterfall's animation
+	.4byte Move_WATER_PULSE @ Move_BRINE reuses Water Pulse's animation
+	.4byte Move_WATER_SPORT @ Move_AQUA_RING reuses Water Sport's animation
+	.4byte Move_ZAP_CANNON @ Move_FLASH_CANNON reuses Zap Cannon's animation
+	.4byte Move_COUNT @ cannot be reached, because last move is Flash Cannon
 
 	.align 2
 gBattleAnims_StatusConditions::

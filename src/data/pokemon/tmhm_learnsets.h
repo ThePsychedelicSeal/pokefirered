@@ -6508,7 +6508,8 @@ static const u32 sTMHMLearnsets[][2] =
                                         | TMHM(TM45_ATTRACT)
                                         | TMHM(TM46_THIEF)
                                         | TMHM(HM03_SURF)
-                                        | TMHM(HM05_FLASH)),
+                                 
+                                        | TMHM(TM50_OVERHEAT)       | TMHM(HM05_FLASH)),
 
     [SPECIES_LOMBRE]      = TMHM_LEARNSET(TMHM(TM03_WATER_PULSE)
                                         | TMHM(TM06_TOXIC)

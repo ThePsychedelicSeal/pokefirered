@@ -356,6 +356,11 @@ const u8 gMoveDescription_WaterPulse[] = _("An attack with a\npulsing blast of\n
 const u8 gMoveDescription_DoomDesire[] = _("A move that attacks\nthe foe with a\nblast of light two\nturns after use.");
 const u8 gMoveDescription_PsychoBoost[] = _("An intense attack\nthat also sharply\nreduces the user's\nSP. ATK stat.");
 const u8 gMoveDescription_PoisonJab[] = _("The foe is stabbed\nwith a tentacle,\netc. It may also\npoison the foe.");
+const u8 gMoveDescription_AquaTail[] = _("The user attacks\nby swinging its\ntail as if a wave\nin a storm.");
+const u8 gMoveDescription_Brine[] = _("A spray of brine\nhits the foe. Power\ndoubles if the foe's\nHP is half or less.");
+const u8 gMoveDescription_AquaRing[] = _("The user cloaks\nitself in a veil of\nwater, restoring a\nlittle HP each turn.");
+
+const u8 gMoveDescription_FlashCannon[] = _("The user releases\nits light energy.\nIt may also lower\nSp. Def.");
 
 const u8 *const gMoveDescriptionPointers[MOVES_COUNT - 1] = {
     [MOVE_POUND         - 1] = gMoveDescription_Pound,
@@ -713,4 +718,8 @@ const u8 *const gMoveDescriptionPointers[MOVES_COUNT - 1] = {
     [MOVE_DOOM_DESIRE   - 1] = gMoveDescription_DoomDesire,
     [MOVE_PSYCHO_BOOST  - 1] = gMoveDescription_PsychoBoost,
     [MOVE_POISON_JAB    - 1] = gMoveDescription_PoisonJab,
+    [MOVE_AQUA_TAIL    - 1] = gMoveDescription_AquaTail,
+    [MOVE_BRINE        - 1] = gMoveDescription_Brine,
+    [MOVE_AQUA_RING    - 1] = gMoveDescription_AquaRing,
+    [MOVE_FLASH_CANNON    - 1] = gMoveDescription_FlashCannon,
 };

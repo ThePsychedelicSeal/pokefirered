@@ -308,6 +308,8 @@ static void Cmd_subattackerhpbydmg(void);
 static void Cmd_removeattackerstatus1(void);
 static void Cmd_finishaction(void);
 static void Cmd_finishturn(void);
+static void Cmd_jumpiftargethalfhp(void);
+static void Cmd_trysetaquaring(void);
 
 void (* const gBattleScriptingCommandsTable[])(void) =
 {
@@ -559,6 +561,8 @@ void (* const gBattleScriptingCommandsTable[])(void) =
     Cmd_removeattackerstatus1,                   //0xF5
     Cmd_finishaction,                            //0xF6
     Cmd_finishturn,                              //0xF7
+    Cmd_jumpiftargethalfhp,                      //0xF8
+    Cmd_trysetaquaring,                          //0xF9
 };
 
 struct StatFractions
@@ -3188,7 +3192,14 @@ static void Cmd_getexp(void)
                 u32 top = SqrtFixedPoint(2*L + 10) * (2*L + 10) * (2*L + 10);
                 u32 bottom = SqrtFixedPoint(L + Lp + 10) * (L + Lp + 10) * (L + Lp + 10);
 
-                calculatedExp = (base * top) / bottom; // stage 2: floored again here
+                // LOTAD: base*top overflows u32 for the overwhelming majority of real battles
+                // (22/27 in the regression set) - top alone can reach ~2.6 billion at high L
+                // (SqrtFixedPoint's 4096-scaled sqrt times (2L+10)^2), and multiplying that by
+                // base (which can be in the hundreds to thousands) blows past UINT32_MAX
+                // (~4.29 billion), silently wrapping mod 2^32 and corrupting the result before
+                // the division ever runs. Widen just this multiply/divide to 64-bit so it can't
+                // overflow, then narrow back to u16 at the end same as before.
+                calculatedExp = ((u64)base * (u64)top) / bottom; // stage 2: floored again here
                 calculatedExp += 1;
             }
             // --- end LOTAD replacement ---
@@ -6442,7 +6453,11 @@ static void Cmd_setrain(void)
     {
         gBattleWeather = B_WEATHER_RAIN_TEMPORARY;
         gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_STARTED_RAIN;
-        gWishFutureKnock.weatherDuration = 5;
+        // Damp Rock extends Rain Dance from 5 turns to 8 for whoever used the move.
+        if (ItemId_GetHoldEffect(gBattleMons[gBattlerAttacker].item) == HOLD_EFFECT_DAMP_ROCK)
+            gWishFutureKnock.weatherDuration = 8;
+        else
+            gWishFutureKnock.weatherDuration = 5;
     }
     gBattlescriptCurrInstr++;
 }
@@ -6544,6 +6559,33 @@ static void Cmd_jumpifnotfirstturn(void)
         gBattlescriptCurrInstr += 5;
     else
         gBattlescriptCurrInstr = failJump;
+}
+
+// EFFECT_BRINE  — jumps if the target's current HP is at or below half of its max HP.
+static void Cmd_jumpiftargethalfhp(void)
+{
+    const u8 *jumpPtr = T1_READ_PTR(gBattlescriptCurrInstr + 1);
+
+    if (gBattleMons[gBattlerTarget].hp * 2 <= gBattleMons[gBattlerTarget].maxHP)
+        gBattlescriptCurrInstr = jumpPtr;
+    else
+        gBattlescriptCurrInstr += 5;
+}
+
+// EFFECT_AQUA_RING — mirrors Cmd_trysetroots (Ingrain) exactly, but sets STATUS3_AQUA_RING instead
+// of STATUS3_ROOTED, since that flag also gates Ingrain's anti-switch/grounding behavior which
+// Aqua Ring does not have.
+static void Cmd_trysetaquaring(void)
+{
+    if (gStatuses3[gBattlerAttacker] & STATUS3_AQUA_RING)
+    {
+        gBattlescriptCurrInstr = T1_READ_PTR(gBattlescriptCurrInstr + 1);
+    }
+    else
+    {
+        gStatuses3[gBattlerAttacker] |= STATUS3_AQUA_RING;
+        gBattlescriptCurrInstr += 5;
+    }
 }
 
 static void Cmd_nop(void)

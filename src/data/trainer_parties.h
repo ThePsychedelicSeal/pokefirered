@@ -5476,9 +5476,7 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourLorelei[] = {
         .lvl = 54,
         .species = SPECIES_JYNX,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Ice Punch became Physical, which is now Jynx's weaker stat here.
-        // Swapped for Ice Beam (Special Ice, TM13-legal, comparable power) to preserve intent.
-        .moves = {MOVE_ICE_BEAM, MOVE_DOUBLE_SLAP, MOVE_LOVELY_KISS, MOVE_ATTRACT},
+        .moves = {MOVE_ICE_PUNCH, MOVE_DOUBLE_SLAP, MOVE_LOVELY_KISS, MOVE_ATTRACT},
     },
     {
         .iv = 250,
@@ -5540,9 +5538,7 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourAgatha[] = {
         .lvl = 54,
         .species = SPECIES_GOLBAT,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Air Cutter became Special, which is now Golbat's weaker stat here.
-        // Swapped for Aerial Ace (Physical Flying, TM40-legal, comparable power) to preserve intent.
-        .moves = {MOVE_CONFUSE_RAY, MOVE_POISON_FANG, MOVE_AERIAL_ACE, MOVE_BITE},
+        .moves = {MOVE_CONFUSE_RAY, MOVE_POISON_FANG, MOVE_AIR_CUTTER, MOVE_BITE},
     },
     {
         .iv = 250,
@@ -5556,9 +5552,7 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourAgatha[] = {
         .lvl = 56,
         .species = SPECIES_ARBOK,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Sludge Bomb became Special, which is now Arbok's weaker stat here.
-        // Swapped for Poison Jab (Physical Poison, comparable power) to preserve intent.
-        .moves = {MOVE_POISON_JAB, MOVE_SCREECH, MOVE_IRON_TAIL, MOVE_BITE},
+        .moves = {MOVE_SLUDGE_BOMB, MOVE_SCREECH, MOVE_IRON_TAIL, MOVE_BITE},
     },
     {
         .iv = 250,
@@ -5575,40 +5569,35 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourLance[] = {
         .lvl = 56,
         .species = SPECIES_GYARADOS,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Hyper Beam became Special, which is now Gyarados's weaker stat here.
-        // Swapped for Double-Edge (Physical Normal, tutor-legal, comparable power) to preserve intent.
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_DRAGON_RAGE, MOVE_TWISTER, MOVE_BITE},
+        .moves = {MOVE_HYPER_BEAM, MOVE_DRAGON_RAGE, MOVE_TWISTER, MOVE_BITE},
     },
     {
         .iv = 250,
         .lvl = 54,
         .species = SPECIES_DRAGONAIR,
         .heldItem = ITEM_NONE,
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_SAFEGUARD, MOVE_DRAGON_RAGE, MOVE_OUTRAGE},
+        .moves = {MOVE_HYPER_BEAM, MOVE_SAFEGUARD, MOVE_DRAGON_RAGE, MOVE_OUTRAGE},
     },
     {
         .iv = 250,
         .lvl = 54,
         .species = SPECIES_DRAGONAIR,
         .heldItem = ITEM_NONE,
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_SAFEGUARD, MOVE_THUNDER_WAVE, MOVE_OUTRAGE},
+        .moves = {MOVE_HYPER_BEAM, MOVE_SAFEGUARD, MOVE_THUNDER_WAVE, MOVE_OUTRAGE},
     },
     {
         .iv = 250,
         .lvl = 58,
         .species = SPECIES_AERODACTYL,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Hyper Beam and Ancient Power both became Special, now Aerodactyl's
-        // weaker stat here. Swapped for Double-Edge and Rock Slide (both Physical, tutor-legal,
-        // comparable power) to preserve intent.
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_ROCK_SLIDE, MOVE_WING_ATTACK, MOVE_SCARY_FACE},
+        .moves = {MOVE_HYPER_BEAM, MOVE_ANCIENT_POWER, MOVE_WING_ATTACK, MOVE_SCARY_FACE},
     },
     {
         .iv = 250,
         .lvl = 60,
         .species = SPECIES_DRAGONITE,
         .heldItem = ITEM_SITRUS_BERRY,
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_SAFEGUARD, MOVE_OUTRAGE, MOVE_WING_ATTACK},
+        .moves = {MOVE_HYPER_BEAM, MOVE_SAFEGUARD, MOVE_OUTRAGE, MOVE_WING_ATTACK},
     },
 };
 
@@ -5695,9 +5684,7 @@ static const struct TrainerMonNoItemCustomMoves sParty_LeaderKoga[] = {
         .iv = 0,
         .lvl = 39,
         .species = SPECIES_MUK,
-        // Gen 5 split: Sludge became Special, which is now Muk's weaker stat here.
-        // Swapped for Poison Jab (Physical Poison, ~comparable power) to preserve intent.
-        .moves = {MOVE_MINIMIZE, MOVE_POISON_JAB, MOVE_ACID_ARMOR, MOVE_TOXIC},
+        .moves = {MOVE_MINIMIZE, MOVE_SLUDGE, MOVE_ACID_ARMOR, MOVE_TOXIC},
     },
     {
         .iv = 0,
@@ -5948,9 +5935,7 @@ static const struct TrainerMonNoItemCustomMoves sParty_RivalPokemonTowerBulbasau
         .iv = 100,
         .lvl = 25,
         .species = SPECIES_IVYSAUR,
-        // Gen 5 split: Razor Leaf became Physical, which is now Ivysaur's weaker stat here.
-        // Swapped for Giga Drain (Special Grass, TM19-legal, comparable power) to preserve intent.
-        .moves = {MOVE_VINE_WHIP, MOVE_POISON_POWDER, MOVE_SLEEP_POWDER, MOVE_GIGA_DRAIN},
+        .moves = {MOVE_VINE_WHIP, MOVE_POISON_POWDER, MOVE_SLEEP_POWDER, MOVE_RAZOR_LEAF},
     },
 };
 
@@ -6039,9 +6024,7 @@ static const struct TrainerMonNoItemCustomMoves sParty_RivalSilphBulbasaur[] = {
         .iv = 150,
         .lvl = 40,
         .species = SPECIES_VENUSAUR,
-        // Gen 5 split: Razor Leaf became Physical, which is now Venusaur's weaker stat here.
-        // Swapped for Giga Drain (Special Grass, TM19-legal, comparable power) to preserve intent.
-        .moves = {MOVE_POISON_POWDER, MOVE_SLEEP_POWDER, MOVE_GIGA_DRAIN, MOVE_SWEET_SCENT},
+        .moves = {MOVE_POISON_POWDER, MOVE_SLEEP_POWDER, MOVE_RAZOR_LEAF, MOVE_SWEET_SCENT},
     },
 };
 
@@ -6147,7 +6130,7 @@ static const struct TrainerMonNoItemCustomMoves sParty_RivalRoute22LateBulbasaur
         .iv = 250,
         .lvl = 53,
         .species = SPECIES_VENUSAUR,
-        .moves = {MOVE_GIGA_DRAIN, MOVE_SWEET_SCENT, MOVE_GROWTH, MOVE_SYNTHESIS},
+        .moves = {MOVE_RAZOR_LEAF, MOVE_SWEET_SCENT, MOVE_GROWTH, MOVE_SYNTHESIS},
     },
 };
 
@@ -10615,7 +10598,7 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourLorelei2[] = {
         .lvl = 66,
         .species = SPECIES_JYNX,
         .heldItem = ITEM_NONE,
-        .moves = {MOVE_ICE_BEAM, MOVE_PSYCHIC, MOVE_LOVELY_KISS, MOVE_ATTRACT},
+        .moves = {MOVE_ICE_PUNCH, MOVE_PSYCHIC, MOVE_LOVELY_KISS, MOVE_ATTRACT},
     },
     {
         .iv = 255,
@@ -10677,12 +10660,7 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourAgatha2[] = {
         .lvl = 66,
         .species = SPECIES_CROBAT,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Sludge Bomb and Air Cutter both became Special, now Crobat's weaker
-        // stat here. Swapped for Poison Jab and Aerial Ace (both Physical, TM-legal, comparable
-        // power) to preserve intent. Shadow Ball also flips to Special/weaker here, but no
-        // legal same-type Physical Ghost move exists near its power (Shadow Punch has no Gen 3
-        // TM/tutor access) -- left as an accepted mild nerf per the audit's tolerance rule.
-        .moves = {MOVE_POISON_JAB, MOVE_AERIAL_ACE, MOVE_SHADOW_BALL, MOVE_CONFUSE_RAY},
+        .moves = {MOVE_SLUDGE_BOMB, MOVE_AIR_CUTTER, MOVE_SHADOW_BALL, MOVE_CONFUSE_RAY},
     },
     {
         .iv = 255,
@@ -10696,9 +10674,7 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourAgatha2[] = {
         .lvl = 68,
         .species = SPECIES_ARBOK,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Sludge Bomb became Special, which is now Arbok's weaker stat here.
-        // Swapped for Poison Jab (Physical Poison, comparable power) to preserve intent.
-        .moves = {MOVE_POISON_JAB, MOVE_EARTHQUAKE, MOVE_GIGA_DRAIN, MOVE_DOUBLE_TEAM},
+        .moves = {MOVE_SLUDGE_BOMB, MOVE_EARTHQUAKE, MOVE_GIGA_DRAIN, MOVE_DOUBLE_TEAM},
     },
     {
         .iv = 255,
@@ -10715,16 +10691,14 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourLance2[] = {
         .lvl = 68,
         .species = SPECIES_GYARADOS,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Hyper Beam became Special, which is now Gyarados's weaker stat here.
-        // Swapped for Double-Edge (Physical Normal, tutor-legal, comparable power) to preserve intent.
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_THUNDER_WAVE},
+        .moves = {MOVE_HYPER_BEAM, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_THUNDER_WAVE},
     },
     {
         .iv = 255,
         .lvl = 66,
         .species = SPECIES_DRAGONITE,
         .heldItem = ITEM_NONE,
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_EARTHQUAKE, MOVE_DRAGON_CLAW, MOVE_FLAMETHROWER},
+        .moves = {MOVE_HYPER_BEAM, MOVE_EARTHQUAKE, MOVE_DRAGON_CLAW, MOVE_FLAMETHROWER},
     },
     {
         .iv = 255,
@@ -10738,17 +10712,14 @@ static const struct TrainerMonItemCustomMoves sParty_EliteFourLance2[] = {
         .lvl = 70,
         .species = SPECIES_AERODACTYL,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Hyper Beam and Ancient Power both became Special, now Aerodactyl's
-        // weaker stat here. Swapped for Double-Edge and Rock Slide (both Physical, tutor-legal,
-        // comparable power) to preserve intent.
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_ROCK_SLIDE, MOVE_AERIAL_ACE, MOVE_EARTHQUAKE},
+        .moves = {MOVE_HYPER_BEAM, MOVE_ANCIENT_POWER, MOVE_AERIAL_ACE, MOVE_EARTHQUAKE},
     },
     {
         .iv = 255,
         .lvl = 72,
         .species = SPECIES_DRAGONITE,
         .heldItem = ITEM_PERSIM_BERRY,
-        .moves = {MOVE_DOUBLE_EDGE, MOVE_OUTRAGE, MOVE_THUNDERBOLT, MOVE_ICE_BEAM},
+        .moves = {MOVE_HYPER_BEAM, MOVE_OUTRAGE, MOVE_THUNDERBOLT, MOVE_ICE_BEAM},
     },
 };
 
@@ -10824,9 +10795,7 @@ static const struct TrainerMonItemCustomMoves sParty_ChampionRematchBulbasaur[] 
         .lvl = 73,
         .species = SPECIES_GYARADOS,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Hyper Beam became Special, which is now Gyarados's weaker stat here.
-        // Swapped for Double-Edge (Physical Normal, tutor-legal, comparable power) to preserve intent.
-        .moves = {MOVE_HYDRO_PUMP, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_DOUBLE_EDGE},
+        .moves = {MOVE_HYDRO_PUMP, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_HYPER_BEAM},
     },
     {
         .iv = 255,
@@ -10878,9 +10847,7 @@ static const struct TrainerMonItemCustomMoves sParty_ChampionRematchCharmander[]
         .lvl = 73,
         .species = SPECIES_GYARADOS,
         .heldItem = ITEM_NONE,
-        // Gen 5 split: Hyper Beam became Special, which is now Gyarados's weaker stat here.
-        // Swapped for Double-Edge (Physical Normal, tutor-legal, comparable power) to preserve intent.
-        .moves = {MOVE_HYDRO_PUMP, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_DOUBLE_EDGE},
+        .moves = {MOVE_HYDRO_PUMP, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_HYPER_BEAM},
     },
     {
         .iv = 255,

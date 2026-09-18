@@ -222,6 +222,7 @@ static const u32 *const sItemIconTable[ITEMS_COUNT + 1][2] =
     [ITEM_LIGHT_BALL]     = {gItemIcon_LightBall, gItemIconPalette_LightBall},
     [ITEM_SOFT_SAND]      = {gItemIcon_SoftSand, gItemIconPalette_SoftSand},
     [ITEM_HARD_STONE]     = {gItemIcon_HardStone, gItemIconPalette_HardStone},
+    [ITEM_DAMP_ROCK]      = {gItemIcon_HardStone, gItemIconPalette_HardStone}, // reuses Hard Stone's icon until a dedicated rock-shaped icon is drawn
     [ITEM_MIRACLE_SEED]   = {gItemIcon_MiracleSeed, gItemIconPalette_MiracleSeed},
     [ITEM_BLACK_GLASSES]  = {gItemIcon_BlackGlasses, gItemIconPalette_BlackTypeEnhancingItem},
     [ITEM_BLACK_BELT]     = {gItemIcon_BlackBelt, gItemIconPalette_BlackTypeEnhancingItem},

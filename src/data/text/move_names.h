@@ -354,5 +354,9 @@ const u8 gMoveNames[MOVES_COUNT][MOVE_NAME_LENGTH + 1] = {
     [MOVE_WATER_PULSE]   = _("WATER PULSE"),
     [MOVE_DOOM_DESIRE]   = _("DOOM DESIRE"),
     [MOVE_PSYCHO_BOOST]  = _("PSYCHO BOOST"),
-    [MOVE_POISON_JAB]    = _("POISON JAB")
+    [MOVE_POISON_JAB]    = _("POISON JAB"),
+    [MOVE_AQUA_TAIL]    = _("AQUA TAIL"),
+    [MOVE_BRINE]        = _("BRINE"),
+    [MOVE_AQUA_RING]    = _("AQUA RING"),
+    [MOVE_FLASH_CANNON]    = _("FLASH CANNON"),
 };

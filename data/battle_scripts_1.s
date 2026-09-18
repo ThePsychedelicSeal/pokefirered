@@ -235,6 +235,8 @@ gBattleScriptsForMoveEffects::
 	.4byte BattleScript_EffectCalmMind               @ EFFECT_CALM_MIND
 	.4byte BattleScript_EffectDragonDance            @ EFFECT_DRAGON_DANCE
 	.4byte BattleScript_EffectCamouflage             @ EFFECT_CAMOUFLAGE
+	.4byte BattleScript_EffectBrine                  @ EFFECT_BRINE
+	.4byte BattleScript_EffectAquaRing               @ EFFECT_AQUA_RING
 
 BattleScript_EffectHit::
 	jumpifnotmove MOVE_SURF, BattleScript_HitFromAtkCanceler
@@ -2252,6 +2254,25 @@ BattleScript_FacadeDoubleDmg::
 	setbyte sDMG_MULTIPLIER, 2
 	goto BattleScript_EffectHit
 
+BattleScript_EffectBrine::
+	jumpiftargethalfhp BattleScript_BrineDoubleDmg
+	goto BattleScript_EffectHit
+
+BattleScript_BrineDoubleDmg::
+	setbyte sDMG_MULTIPLIER, 2
+	goto BattleScript_EffectHit
+
+BattleScript_EffectAquaRing::
+	attackcanceler
+	attackstring
+	ppreduce
+	trysetaquaring BattleScript_ButItFailed
+	attackanimation
+	waitanimation
+	printstring STRINGID_PKMNSURROUNDEDWITHVEILOFWATER
+	waitmessage B_WAIT_TIME_LONG
+	goto BattleScript_MoveEnd
+
 BattleScript_EffectFocusPunch::
 	attackcanceler
 	jumpifnodamage BattleScript_HitFromAccCheck
@@ -3553,6 +3574,15 @@ BattleScript_WishButFullHp::
 BattleScript_IngrainTurnHeal::
 	playanimation BS_ATTACKER, B_ANIM_INGRAIN_HEAL
 	printstring STRINGID_PKMNABSORBEDNUTRIENTS
+	waitmessage B_WAIT_TIME_LONG
+	orword gHitMarker, HITMARKER_IGNORE_SUBSTITUTE
+	healthbarupdate BS_ATTACKER
+	datahpupdate BS_ATTACKER
+	end2
+
+BattleScript_AquaRingTurnHeal::
+	playanimation BS_ATTACKER, B_ANIM_WISH_HEAL
+	printstring STRINGID_PKMNAQUARINGHEALEDHP
 	waitmessage B_WAIT_TIME_LONG
 	orword gHitMarker, HITMARKER_IGNORE_SUBSTITUTE
 	healthbarupdate BS_ATTACKER

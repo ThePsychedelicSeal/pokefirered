@@ -16,3 +16,26 @@ CinnabarIsland_PokemonLab_ResearchRoom_EventScript_Computer::
 CinnabarIsland_PokemonLab_ResearchRoom_EventScript_AmberPipe::
 	msgbox CinnabarIsland_PokemonLab_ResearchRoom_Text_AnAmberPipe, MSGBOX_SIGN
 	end
+
+CinnabarIsland_PokemonLab_ResearchRoom_EventScript_TMResearcher::
+	lock
+	faceplayer
+	goto_if_set FLAG_GOT_TM_FROM_CINNABAR_LAB, CinnabarIsland_PokemonLab_ResearchRoom_EventScript_AlreadyGaveTM
+	msgbox CinnabarIsland_PokemonLab_ResearchRoom_Text_TrackedSinceItAppeared
+	checkitemspace ITEM_TM50
+	goto_if_eq VAR_RESULT, FALSE, CinnabarIsland_PokemonLab_ResearchRoom_EventScript_NoRoomForTM
+	giveitem_msg CinnabarIsland_PokemonLab_ResearchRoom_Text_ReceivedTMFromResearcher, ITEM_TM50
+	msgbox CinnabarIsland_PokemonLab_ResearchRoom_Text_ExplainTM
+	setflag FLAG_GOT_TM_FROM_CINNABAR_LAB
+	release
+	end
+
+CinnabarIsland_PokemonLab_ResearchRoom_EventScript_NoRoomForTM::
+	msgbox CinnabarIsland_PokemonLab_ResearchRoom_Text_NoRoomForTM
+	release
+	end
+
+CinnabarIsland_PokemonLab_ResearchRoom_EventScript_AlreadyGaveTM::
+	msgbox CinnabarIsland_PokemonLab_ResearchRoom_Text_ExplainTM
+	release
+	end

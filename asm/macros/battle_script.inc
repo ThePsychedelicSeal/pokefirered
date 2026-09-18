@@ -1378,3 +1378,15 @@
 	.macro jumpifnotbattletype flags:req, jumpptr:req
 	jumpifword CMP_NO_COMMON_BITS, gBattleTypeFlags, \flags, \jumpptr
 	.endm
+
+	@ Added for EFFECT_BRINE — jumps if the target's current HP is at or below half its max HP.
+	.macro jumpiftargethalfhp ptr:req
+	.byte 0xF8
+	.4byte \ptr
+	.endm
+
+	@ Added for EFFECT_AQUA_RING — jumps if STATUS3_AQUA_RING is already set (mirrors trysetroots).
+	.macro trysetaquaring ptr:req
+	.byte 0xF9
+	.4byte \ptr
+	.endm

@@ -151,6 +151,7 @@
 #define STATUS3_UNDERWATER              (1 << 18)
 #define STATUS3_INTIMIDATE_POKES        (1 << 19)
 #define STATUS3_TRACE                   (1 << 20)
+#define STATUS3_AQUA_RING               (1 << 21) // Heals 1/16 max HP each turn, same math as Ingrain but without STATUS3_ROOTED's anti-switch/grounding side effects
 #define STATUS3_SEMI_INVULNERABLE       (STATUS3_UNDERGROUND | STATUS3_ON_AIR | STATUS3_UNDERWATER)
 
 // Not really sure what a "hitmarker" is.
