@@ -3586,6 +3586,9 @@ BattleScript_DoFutureAttackHit::
 	waitstate
 	healthbarupdate BS_TARGET
 	datahpupdate BS_TARGET
+	@ LOTAD: Gen 5 - Future Sight / Doom Desire can crit
+	critmessage
+	waitmessage B_WAIT_TIME_LONG
 	resultmessage
 	waitmessage B_WAIT_TIME_LONG
 	tryfaintmon BS_TARGET

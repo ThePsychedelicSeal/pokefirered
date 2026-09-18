@@ -8668,6 +8668,64 @@ static void Cmd_selectfirstvalidtarget(void)
     gBattlescriptCurrInstr++;
 }
 
+// LOTAD: Gen 5 Future Sight / Doom Desire - damage is calculated when the attack HITS, with the user's Sp. Atk vs the
+// target's Sp. Def at that time, as a Psychic / Steel move (type effectiveness, STAB, crits). Runs the normal
+// critcalc/damagecalc/typecalc steps synchronously. If the user has since been replaced in its slot, its party data
+// is copied into the slot only for the duration of this function (player side; an enemy user that has switched
+// out is approximated with the mon now in the slot). Leaves the result in gBattleMoveDamage / gMoveResultFlags.
+void CalcFutureAttackDamage(u8 attackerSlot, u8 targetSlot, u16 move, u8 attackerPartyIdx)
+{
+    struct BattlePokemon savedAttacker = gBattleMons[attackerSlot];
+    const u8 *savedInstr = gBattlescriptCurrInstr;
+    u16 savedMove = gCurrentMove;
+    static const u8 sScratchScript[8] = {0};  // the Cmd_ functions below only advance this pointer
+    bool8 substituted = FALSE;
+    s32 i;
+
+    if (GetBattlerSide(attackerSlot) == B_SIDE_PLAYER && gBattlerPartyIndexes[attackerSlot] != attackerPartyIdx)
+    {
+        struct Pokemon *mon = &gPlayerParty[attackerPartyIdx];
+
+        gBattleMons[attackerSlot].species = GetMonData(mon, MON_DATA_SPECIES);
+        gBattleMons[attackerSlot].item = GetMonData(mon, MON_DATA_HELD_ITEM);
+        gBattleMons[attackerSlot].level = GetMonData(mon, MON_DATA_LEVEL);
+        gBattleMons[attackerSlot].hp = GetMonData(mon, MON_DATA_HP);
+        gBattleMons[attackerSlot].maxHP = GetMonData(mon, MON_DATA_MAX_HP);
+        gBattleMons[attackerSlot].attack = GetMonData(mon, MON_DATA_ATK);
+        gBattleMons[attackerSlot].defense = GetMonData(mon, MON_DATA_DEF);
+        gBattleMons[attackerSlot].speed = GetMonData(mon, MON_DATA_SPEED);
+        gBattleMons[attackerSlot].spAttack = GetMonData(mon, MON_DATA_SPATK);
+        gBattleMons[attackerSlot].spDefense = GetMonData(mon, MON_DATA_SPDEF);
+        gBattleMons[attackerSlot].type1 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[0];
+        gBattleMons[attackerSlot].type2 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[1];
+        gBattleMons[attackerSlot].ability = GetMonAbility(mon);
+        gBattleMons[attackerSlot].status1 = GetMonData(mon, MON_DATA_STATUS);
+        gBattleMons[attackerSlot].status2 = 0;
+        for (i = 0; i < NUM_BATTLE_STATS; i++)
+            gBattleMons[attackerSlot].statStages[i] = DEFAULT_STAT_STAGE;
+        substituted = TRUE;
+    }
+
+    gBattlerAttacker = attackerSlot;
+    gBattlerTarget = targetSlot;
+    gCurrentMove = move;
+    gBattleStruct->dynamicMoveType = 0;
+    gDynamicBasePower = 0;
+    gBattleScripting.dmgMultiplier = 1;
+    gMoveResultFlags = 0;
+    gBattleMoveDamage = 0;
+    gBattlescriptCurrInstr = sScratchScript;
+
+    Cmd_critcalc();
+    Cmd_damagecalc();
+    Cmd_typecalc();
+
+    gBattlescriptCurrInstr = savedInstr;
+    gCurrentMove = savedMove;
+    if (substituted)
+        gBattleMons[attackerSlot] = savedAttacker;
+}
+
 static void Cmd_trysetfutureattack(void)
 {
     if (gWishFutureKnock.futureSightCounter[gBattlerTarget] != 0)
@@ -8679,12 +8737,9 @@ static void Cmd_trysetfutureattack(void)
         gWishFutureKnock.futureSightMove[gBattlerTarget] = gCurrentMove;
         gWishFutureKnock.futureSightAttacker[gBattlerTarget] = gBattlerAttacker;
         gWishFutureKnock.futureSightCounter[gBattlerTarget] = 3;
-        gWishFutureKnock.futureSightDmg[gBattlerTarget] = CalculateBaseDamage(&gBattleMons[gBattlerAttacker], &gBattleMons[gBattlerTarget], gCurrentMove,
-                                                    gSideStatuses[GET_BATTLER_SIDE(gBattlerTarget)], 0,
-                                                    0, gBattlerAttacker, gBattlerTarget);
-
-        if (gProtectStructs[gBattlerAttacker].helpingHand)
-            gWishFutureKnock.futureSightDmg[gBattlerTarget] = gWishFutureKnock.futureSightDmg[gBattlerTarget] * 15 / 10;
+        // LOTAD: Gen 5 - damage is no longer calculated here at cast time; it is calculated when the attack lands
+        // (CalcFutureAttackDamage). Remember which party slot cast it so its stats can be used even if it switched out.
+        gWishFutureKnock.futureSightPartyIdx[gBattlerTarget] = gBattlerPartyIndexes[gBattlerAttacker];
 
         if (gCurrentMove == MOVE_DOOM_DESIRE)
             gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_DOOM_DESIRE;
@@ -9030,6 +9085,8 @@ static void Cmd_trywish(void)
         {
             gWishFutureKnock.wishCounter[gBattlerAttacker] = 2;
             gWishFutureKnock.wishMonId[gBattlerAttacker] = gBattlerPartyIndexes[gBattlerAttacker];
+            // LOTAD: Gen 5 - the heal is half of the WISHER's max HP, even if another mon is out when it lands
+            gWishFutureKnock.wishHeal[gBattlerAttacker] = gBattleMons[gBattlerAttacker].maxHP / 2;
             gBattlescriptCurrInstr += 6;
         }
         else
@@ -9040,7 +9097,7 @@ static void Cmd_trywish(void)
     case 1: // heal effect
         PREPARE_MON_NICK_WITH_PREFIX_BUFFER(gBattleTextBuff1, gBattlerTarget, gWishFutureKnock.wishMonId[gBattlerTarget])
 
-        gBattleMoveDamage = gBattleMons[gBattlerTarget].maxHP / 2;
+        gBattleMoveDamage = gWishFutureKnock.wishHeal[gBattlerTarget];
         if (gBattleMoveDamage == 0)
             gBattleMoveDamage = 1;
         gBattleMoveDamage *= -1;

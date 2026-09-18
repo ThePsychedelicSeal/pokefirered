@@ -1107,7 +1107,9 @@ bool8 HandleWishPerishSongOnTurnEnd(void)
 
                 gBattlerTarget = gActiveBattler;
                 gBattlerAttacker = gWishFutureKnock.futureSightAttacker[gActiveBattler];
-                gBattleMoveDamage = gWishFutureKnock.futureSightDmg[gActiveBattler];
+                // LOTAD: Gen 5 - calculate the damage now, when the attack hits (not when it was used)
+                CalcFutureAttackDamage(gBattlerAttacker, gBattlerTarget, gWishFutureKnock.futureSightMove[gActiveBattler],
+                                       gWishFutureKnock.futureSightPartyIdx[gActiveBattler]);
                 gSpecialStatuses[gBattlerTarget].dmg = 0xFFFF;
                 BattleScriptExecute(BattleScript_MonTookFutureAttack);
                 return TRUE;

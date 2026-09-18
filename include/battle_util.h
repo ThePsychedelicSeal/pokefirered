@@ -40,6 +40,7 @@
 #define ABILITY_ON_FIELD2(abilityId)(AbilityBattleEffects(ABILITYEFFECT_FIELD_SPORT, 0, abilityId, 0, 0))
 
 // LOTAD: Gen 5 sleep counter reset on switch-out (see battle_util.c)
+void CalcFutureAttackDamage(u8 attackerSlot, u8 targetSlot, u16 move, u8 attackerPartyIdx); // Gen 5 Future Sight/Doom Desire
 void RecordSleepStart(u8 battler);
 void RestoreSleepCounterOnSwitchIn(u8 battler);
 

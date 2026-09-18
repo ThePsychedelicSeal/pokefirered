@@ -260,6 +260,8 @@ struct WishFutureKnock
     u16 futureSightMove[MAX_BATTLERS_COUNT];
     u8 wishCounter[MAX_BATTLERS_COUNT];
     u8 wishMonId[MAX_BATTLERS_COUNT];
+    u16 wishHeal[MAX_BATTLERS_COUNT];              // LOTAD: Gen 5 Wish heals half of the WISHER's max HP (stored at cast)
+    u8 futureSightPartyIdx[MAX_BATTLERS_COUNT];    // LOTAD: Gen 5 Future Sight/Doom Desire - attacker's party slot
     u8 weatherDuration;
     u8 knockedOffMons[2];
 };
