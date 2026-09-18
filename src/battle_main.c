@@ -3846,6 +3846,21 @@ static void HandleEndTurn_FinishBattle(void)
                 }
             }
         }
+        // LOTAD: Gen 5 - a badly poisoned party member reverts to regular poison at the end of battle
+        {
+            s32 partyIdx;
+
+            for (partyIdx = 0; partyIdx < PARTY_SIZE; partyIdx++)
+            {
+                u32 partyStatus = GetMonData(&gPlayerParty[partyIdx], MON_DATA_STATUS);
+
+                if (partyStatus & STATUS1_TOXIC_POISON)
+                {
+                    partyStatus = (partyStatus & ~(STATUS1_TOXIC_POISON | STATUS1_TOXIC_COUNTER)) | STATUS1_POISON;
+                    SetMonData(&gPlayerParty[partyIdx], MON_DATA_STATUS, &partyStatus);
+                }
+            }
+        }
         TrySetQuestLogBattleEvent();
         if (gBattleTypeFlags & BATTLE_TYPE_TRAINER)
             ClearRematchStateByTrainerId();
