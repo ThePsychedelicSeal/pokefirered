@@ -687,7 +687,14 @@ BattleScript_DoMultiHit::
 	waitmessage 1
 	addbyte sMULTIHIT_STRING + 4, 1
 	moveendto MOVEEND_NEXT_TARGET
-	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_ENDURED, BattleScript_MultiHitPrintStrings
+	@ LOTAD: Endure/Focus Band still end the sequence, but a Sturdy survival must not (Gen 5): later strikes hit the 1 HP holder.
+	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_ENDURED, BattleScript_MultiHitEndured
+	decrementmultihit BattleScript_MultiHitLoop
+	goto BattleScript_MultiHitPrintStrings
+BattleScript_MultiHitEndured::
+	jumpifability BS_TARGET, ABILITY_STURDY, BattleScript_MultiHitSturdyContinue
+	goto BattleScript_MultiHitPrintStrings
+BattleScript_MultiHitSturdyContinue::
 	decrementmultihit BattleScript_MultiHitLoop
 	goto BattleScript_MultiHitPrintStrings
 BattleScript_MultiHitNoMoreHits::
