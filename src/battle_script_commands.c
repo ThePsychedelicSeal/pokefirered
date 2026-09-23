@@ -1621,6 +1621,7 @@ static void Cmd_adjustnormaldamage(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, holdEffect);
@@ -1665,6 +1666,7 @@ static void Cmd_adjustnormaldamage2(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, holdEffect);
@@ -5732,6 +5734,7 @@ static void Cmd_adjustsetdamage(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, holdEffect);
@@ -7267,6 +7270,7 @@ static void Cmd_tryKO(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, HOLD_EFFECT_FOCUS_BAND);
