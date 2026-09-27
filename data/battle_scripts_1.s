@@ -689,9 +689,21 @@ BattleScript_DoMultiHit::
 	moveendto MOVEEND_NEXT_TARGET
 	@ LOTAD: Endure/Focus Band still end the sequence, but a Sturdy survival must not (Gen 5): later strikes hit the 1 HP holder.
 	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_ENDURED, BattleScript_MultiHitEndured
+	@ LOTAD: Focus Band also saves independently per strike (Gen 5, commit 0f9e2d89b) without ending the sequence. Its
+	@ message must print HERE, per strike: movevaluescleanup wipes gMoveResultFlags before the next hit runs, so a save on
+	@ a non-final strike would otherwise go unreported once the sequence's end-of-loop resultmessage only sees the LAST hit.
+	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_HUNG_ON, BattleScript_MultiHitFocusBandContinue
+	decrementmultihit BattleScript_MultiHitLoop
+	goto BattleScript_MultiHitPrintStrings
+BattleScript_MultiHitFocusBandContinue::
+	bicbyte gMoveResultFlags, MOVE_RESULT_FOE_HUNG_ON @ printed now; stop the end-of-sequence resultmessage repeating it
+	call BattleScript_FocusBandActivates
 	decrementmultihit BattleScript_MultiHitLoop
 	goto BattleScript_MultiHitPrintStrings
 BattleScript_MultiHitEndured::
+	@ LOTAD: same reasoning as Focus Band above - print Sturdy's/Endure's "endured the hit" now, per strike, not deferred.
+	bicbyte gMoveResultFlags, MOVE_RESULT_FOE_ENDURED @ printed now; stop the end-of-sequence resultmessage repeating it
+	call BattleScript_EnduredMsg
 	jumpifability BS_TARGET, ABILITY_STURDY, BattleScript_MultiHitSturdyContinue
 	goto BattleScript_MultiHitPrintStrings
 BattleScript_MultiHitSturdyContinue::
