@@ -697,6 +697,9 @@ BattleScript_DoMultiHit::
 	goto BattleScript_MultiHitPrintStrings
 BattleScript_MultiHitFocusBandContinue::
 	bicbyte gMoveResultFlags, MOVE_RESULT_FOE_HUNG_ON @ printed now; stop the end-of-sequence resultmessage repeating it
+	@ LOTAD: gLastUsedItem (which BattleScript_FocusBandActivates' message reads) can be clobbered by other item/ability
+	@ checks between hits (e.g. a weather-rock check on either battler) - re-stamp it to the target's actual item first.
+	various BS_TARGET, VARIOUS_SET_LAST_USED_ITEM
 	call BattleScript_FocusBandActivates
 	decrementmultihit BattleScript_MultiHitLoop
 	goto BattleScript_MultiHitPrintStrings

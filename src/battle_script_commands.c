@@ -6331,6 +6331,12 @@ static void Cmd_various(void)
         if (!IsFanfareTaskInactive())
             return;
         break;
+    // LOTAD: see VARIOUS_SET_LAST_USED_ITEM comment (include/constants/battle_script_commands.h) - fixes a multi-hit
+    // Focus Band message printing the wrong item name after gLastUsedItem gets clobbered between hits (ddc09361e).
+    case VARIOUS_SET_LAST_USED_ITEM:
+        gLastUsedItem = gBattleMons[gActiveBattler].item;
+        gPotentialItemEffectBattler = gActiveBattler;
+        break;
     }
 
     gBattlescriptCurrInstr += 3;
