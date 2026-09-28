@@ -2324,6 +2324,16 @@ static void BattleStartClearSetData(void)
         gBattleResults.playerMon2Name[i] = 0;
         gBattleResults.caughtMonNick[i] = 0;
     }
+
+    // LOTAD: Gen 5 sleep-counter switch-out reset (P6.2) - seed sleepOrigCounter from a mon that is ALREADY asleep
+    // when the battle starts (e.g. it fell asleep in an earlier battle). Every other write to this array happens
+    // when sleep is newly applied IN this battle (Sleep Powder/Spore, Rest, Yawn); none of them cover a mon that
+    // walks in already sleeping, so its counter was never recorded and switching it out/in silently failed to
+    // reset it. gBattleStruct is heap-allocated and zeroed by AllocateBattleResources (called earlier, from
+    // CB2_InitBattle, before BeginBattleIntro ever runs this function), so this only needs to fill in the nonzero
+    // case. Player side only: trainer/wild mons never start a battle asleep in vanilla (gEnemyParty out of scope).
+    for (i = 0; i < PARTY_SIZE; i++)
+        gBattleStruct->sleepOrigCounter[B_SIDE_PLAYER][i] = GetMonData(&gPlayerParty[i], MON_DATA_STATUS) & STATUS1_SLEEP;
 }
 
 void SwitchInClearSetData(void)
