@@ -3642,7 +3642,15 @@ static void TurnValuesCleanUp(bool8 var0)
         if (var0)
         {
             gProtectStructs[gActiveBattler].protected = FALSE;
-            gProtectStructs[gActiveBattler].endured = FALSE;
+            // LOTAD: Gen 5 - Endure now also stops a delayed Future Sight/Doom Desire landing (which lands via
+            // HandleWishPerishSongOnTurnEnd, called later in BattleTurnPassed, after this TRUE-branch cleanup but
+            // before the FALSE-branch call at the end of the same function). Leaving `endured` set here - instead
+            // of clearing it early like vanilla did - lets it survive to that landing check. It still cannot leak
+            // into the next turn: the FALSE branch below zeroes the whole ProtectStruct (endured included) before
+            // HandleTurnActionSelectionState runs again. No other code between the two calls reads this flag -
+            // confirmed by grepping every .endured site in src/ and data/ (only Cmd_adjustnormaldamage[2],
+            // Cmd_adjustsetdamage and Cmd_tryKO in battle_script_commands.c ever read it, and poison/burn/curse/
+            // nightmare/leech-seed/weather chip damage all apply through datahpupdate directly, bypassing those).
         }
         else
         {
