@@ -4048,6 +4048,7 @@ static void Cmd_setgraphicalstatchangevalues(void)
     case SET_STAT_BUFF_VALUE(1): // +1
         value = STAT_ANIM_PLUS1;
         break;
+    case SET_STAT_BUFF_VALUE(3): // LOTAD: Gen 5 Tail Glow +3 reuses the +2 stat animation
     case SET_STAT_BUFF_VALUE(2): // +2
         value = STAT_ANIM_PLUS2;
         break;
