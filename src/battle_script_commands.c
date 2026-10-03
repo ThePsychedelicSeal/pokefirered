@@ -8690,9 +8690,10 @@ static void Cmd_selectfirstvalidtarget(void)
 
 // LOTAD: Gen 5 Future Sight / Doom Desire - damage is calculated when the attack HITS, with the user's Sp. Atk vs the
 // target's Sp. Def at that time, as a Psychic / Steel move (type effectiveness, STAB, crits). Runs the normal
-// critcalc/damagecalc/typecalc steps synchronously. If the user has since been replaced in its slot, its party data
-// is copied into the slot only for the duration of this function (player side; an enemy user that has switched
-// out is approximated with the mon now in the slot). Leaves the result in gBattleMoveDamage / gMoveResultFlags.
+// critcalc/damagecalc/typecalc steps synchronously. If the user is no longer on the field (replaced in its slot, or
+// fainted and not replaced), its party data (player or enemy party) is copied into the slot only for the duration of
+// this function. Gen 5: an off-field user's ability and held item are NOT applied. Leaves the result in
+// gBattleMoveDamage / gMoveResultFlags.
 void CalcFutureAttackDamage(u8 attackerSlot, u8 targetSlot, u16 move, u8 attackerPartyIdx)
 {
     struct BattlePokemon savedAttacker = gBattleMons[attackerSlot];
@@ -8700,30 +8701,41 @@ void CalcFutureAttackDamage(u8 attackerSlot, u8 targetSlot, u16 move, u8 attacke
     u16 savedMove = gCurrentMove;
     static const u8 sScratchScript[8] = {0};  // the Cmd_ functions below only advance this pointer
     bool8 substituted = FALSE;
+    // LOTAD: the user counts as off the field if another party mon is in its slot, or if it fainted / left the slot empty
+    bool8 userOffField = (gBattlerPartyIndexes[attackerSlot] != attackerPartyIdx
+                          || gBattleMons[attackerSlot].hp == 0
+                          || (gAbsentBattlerFlags & gBitTable[attackerSlot]));
     s32 i;
 
-    if (GetBattlerSide(attackerSlot) == B_SIDE_PLAYER && gBattlerPartyIndexes[attackerSlot] != attackerPartyIdx)
+    // LOTAD: guard against a bad stored party index or an empty/egg party entry; fall back to the slot's own data
+    if (userOffField && attackerPartyIdx < PARTY_SIZE)
     {
-        struct Pokemon *mon = &gPlayerParty[attackerPartyIdx];
+        // LOTAD: same helper for both sides - only the party array differs
+        struct Pokemon *mon = (GetBattlerSide(attackerSlot) == B_SIDE_PLAYER) ? &gPlayerParty[attackerPartyIdx]
+                                                                               : &gEnemyParty[attackerPartyIdx];
+        u16 monSpecies = GetMonData(mon, MON_DATA_SPECIES_OR_EGG);
 
-        gBattleMons[attackerSlot].species = GetMonData(mon, MON_DATA_SPECIES);
-        gBattleMons[attackerSlot].item = GetMonData(mon, MON_DATA_HELD_ITEM);
-        gBattleMons[attackerSlot].level = GetMonData(mon, MON_DATA_LEVEL);
-        gBattleMons[attackerSlot].hp = GetMonData(mon, MON_DATA_HP);
-        gBattleMons[attackerSlot].maxHP = GetMonData(mon, MON_DATA_MAX_HP);
-        gBattleMons[attackerSlot].attack = GetMonData(mon, MON_DATA_ATK);
-        gBattleMons[attackerSlot].defense = GetMonData(mon, MON_DATA_DEF);
-        gBattleMons[attackerSlot].speed = GetMonData(mon, MON_DATA_SPEED);
-        gBattleMons[attackerSlot].spAttack = GetMonData(mon, MON_DATA_SPATK);
-        gBattleMons[attackerSlot].spDefense = GetMonData(mon, MON_DATA_SPDEF);
-        gBattleMons[attackerSlot].type1 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[0];
-        gBattleMons[attackerSlot].type2 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[1];
-        gBattleMons[attackerSlot].ability = GetMonAbility(mon);
-        gBattleMons[attackerSlot].status1 = GetMonData(mon, MON_DATA_STATUS);
-        gBattleMons[attackerSlot].status2 = 0;
-        for (i = 0; i < NUM_BATTLE_STATS; i++)
-            gBattleMons[attackerSlot].statStages[i] = DEFAULT_STAT_STAGE;
-        substituted = TRUE;
+        if (monSpecies != SPECIES_NONE && monSpecies != SPECIES_EGG)
+        {
+            gBattleMons[attackerSlot].species = monSpecies;
+            gBattleMons[attackerSlot].item = ITEM_NONE; // LOTAD: Gen 5 - off-field user's held item is not applied
+            gBattleMons[attackerSlot].level = GetMonData(mon, MON_DATA_LEVEL);
+            gBattleMons[attackerSlot].hp = GetMonData(mon, MON_DATA_HP);
+            gBattleMons[attackerSlot].maxHP = GetMonData(mon, MON_DATA_MAX_HP);
+            gBattleMons[attackerSlot].attack = GetMonData(mon, MON_DATA_ATK);
+            gBattleMons[attackerSlot].defense = GetMonData(mon, MON_DATA_DEF);
+            gBattleMons[attackerSlot].speed = GetMonData(mon, MON_DATA_SPEED);
+            gBattleMons[attackerSlot].spAttack = GetMonData(mon, MON_DATA_SPATK);
+            gBattleMons[attackerSlot].spDefense = GetMonData(mon, MON_DATA_SPDEF);
+            gBattleMons[attackerSlot].type1 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[0];
+            gBattleMons[attackerSlot].type2 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[1];
+            gBattleMons[attackerSlot].ability = ABILITY_NONE; // LOTAD: Gen 5 - off-field user's ability is not applied
+            gBattleMons[attackerSlot].status1 = GetMonData(mon, MON_DATA_STATUS);
+            gBattleMons[attackerSlot].status2 = 0;
+            for (i = 0; i < NUM_BATTLE_STATS; i++)
+                gBattleMons[attackerSlot].statStages[i] = DEFAULT_STAT_STAGE;
+            substituted = TRUE;
+        }
     }
 
     gBattlerAttacker = attackerSlot;
