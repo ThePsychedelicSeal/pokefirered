@@ -7783,7 +7783,7 @@ static void Cmd_mirrorcoatdamagecalculator(void)
     }
 }
 
-// LOTAD: Gen 5 Disable/Taunt last one extra turn when the target has already acted this turn
+// LOTAD: Gen 5 Taunt lasts one extra turn when the target has already acted this turn (Disable no longer uses this: flat 4)
 // (the current turn then does not count against the effect).
 static u8 GetTargetActedBonus(void)
 {
@@ -7805,7 +7805,7 @@ static void Cmd_disablelastusedattack(void)
         PREPARE_MOVE_BUFFER(gBattleTextBuff1, gBattleMons[gBattlerTarget].moves[i])
 
         gDisableStructs[gBattlerTarget].disabledMove = gBattleMons[gBattlerTarget].moves[i];
-        gDisableStructs[gBattlerTarget].disableTimer = 4 + GetTargetActedBonus(); // LOTAD: Gen 5 Disable = 4 turns (was 2-5)
+        gDisableStructs[gBattlerTarget].disableTimer = 4; // LOTAD: Gen 5 Disable = flat 4 turns counting the turn of use (was 2-5); no extra turn when the target already acted (Taunt keeps that bonus)
         gDisableStructs[gBattlerTarget].disableTimerStartValue = gDisableStructs[gBattlerTarget].disableTimer; // used to save the random amount of turns?
         gBattlescriptCurrInstr += 5;
     }
