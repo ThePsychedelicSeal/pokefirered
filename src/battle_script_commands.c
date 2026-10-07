@@ -702,7 +702,9 @@ static const struct SpriteTemplate sSpriteTemplate_MonIconOnLvlUpBanner =
     .callback = SpriteCB_MonIconOnLvlUpBanner
 };
 
-static const u16 sProtectSuccessRates[] = {USHRT_MAX, USHRT_MAX / 2, USHRT_MAX / 4, USHRT_MAX / 8};
+// LOTAD: Gen 5 Protect/Detect/Endure chain halves each consecutive use down to 1/256 (Gen 3 stopped at 1/8,
+// and protectUses was never capped, so a 5th consecutive use read past the end of this table).
+static const u16 sProtectSuccessRates[] = {USHRT_MAX, USHRT_MAX / 2, USHRT_MAX / 4, USHRT_MAX / 8, USHRT_MAX / 16, USHRT_MAX / 32, USHRT_MAX / 64, USHRT_MAX / 128, USHRT_MAX / 256};
 
 #define MIMIC_FORBIDDEN_END             0xFFFE
 #define METRONOME_FORBIDDEN_END         0xFFFF
@@ -994,7 +996,12 @@ static bool8 AccuracyCalcHelper(u16 move)
 
     gHitMarker &= ~HITMARKER_IGNORE_UNDERWATER;
 
+    // LOTAD: Gen 4+ Blizzard never misses in hail; Gen 5 never-miss moves (Bide, Struggle, Mind Reader,
+    // Foresight, Lock-On, Odor Sleuth) ignore accuracy/evasion stages.
     if ((WEATHER_HAS_EFFECT && (gBattleWeather & B_WEATHER_RAIN) && gBattleMoves[move].effect == EFFECT_THUNDER)
+     || (WEATHER_HAS_EFFECT && (gBattleWeather & B_WEATHER_HAIL) && move == MOVE_BLIZZARD)
+     || move == MOVE_BIDE || move == MOVE_STRUGGLE || move == MOVE_MIND_READER
+     || move == MOVE_FORESIGHT || move == MOVE_LOCK_ON || move == MOVE_ODOR_SLEUTH
      || (gBattleMoves[move].effect == EFFECT_ALWAYS_HIT || gBattleMoves[move].effect == EFFECT_VITAL_THROW))
     {
         JumpIfMoveFailed(7, move);
@@ -1576,6 +1583,25 @@ static void Unused_ApplyRandomDmgMultiplier(void)
     ApplyRandomDmgMultiplier();
 }
 
+// LOTAD: Gen 5 Sturdy - a damaging hit that would KO a full-HP holder leaves it at 1 HP (in addition to the
+// OHKO immunity in Cmd_tryKO). Runs before Endure / Focus Band. Also covers confusion self-hit damage
+// (adjustnormaldamage2) and fixed-damage moves (adjustsetdamage). Reuses the "endured the hit" message.
+static bool8 TrySturdySurvive(void)
+{
+    if (gBattleMons[gBattlerTarget].ability == ABILITY_STURDY
+     && !(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
+     && gBattleMons[gBattlerTarget].hp == gBattleMons[gBattlerTarget].maxHP
+     && gBattleMons[gBattlerTarget].hp <= gBattleMoveDamage)
+    {
+        gBattleMoveDamage = gBattleMons[gBattlerTarget].hp - 1;
+        gMoveResultFlags |= MOVE_RESULT_FOE_ENDURED;
+        gLastUsedAbility = ABILITY_STURDY;
+        RecordAbilityBattle(gBattlerTarget, ABILITY_STURDY);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static void Cmd_adjustnormaldamage(void)
 {
     u8 holdEffect, param;
@@ -1595,12 +1621,14 @@ static void Cmd_adjustnormaldamage(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, holdEffect);
         gSpecialStatuses[gBattlerTarget].focusBanded = 1;
     }
-    if (!(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
+    if (!TrySturdySurvive()
+     && !(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
      && (gBattleMoves[gCurrentMove].effect == EFFECT_FALSE_SWIPE || gProtectStructs[gBattlerTarget].endured || gSpecialStatuses[gBattlerTarget].focusBanded)
      && gBattleMons[gBattlerTarget].hp <= gBattleMoveDamage)
     {
@@ -1638,12 +1666,14 @@ static void Cmd_adjustnormaldamage2(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, holdEffect);
         gSpecialStatuses[gBattlerTarget].focusBanded = 1;
     }
-    if (!(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
+    if (!TrySturdySurvive()
+     && !(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
      && (gProtectStructs[gBattlerTarget].endured || gSpecialStatuses[gBattlerTarget].focusBanded)
      && gBattleMons[gBattlerTarget].hp <= gBattleMoveDamage)
     {
@@ -2346,9 +2376,10 @@ void SetMoveEffect(bool8 primary, u8 certain)
             BattleScriptPush(gBattlescriptCurrInstr + 1);
 
             if (sStatusFlagsForMoveEffects[gBattleCommunication[MOVE_EFFECT_BYTE]] == STATUS1_SLEEP)
-                gBattleMons[gEffectBattler].status1 |= STATUS1_SLEEP_TURN((Random() & 3) + 2); // 2-5 turns
+                gBattleMons[gEffectBattler].status1 |= STATUS1_SLEEP_TURN((Random() % 3) + 2); // LOTAD: Gen 5 sleep counter 2-4 (was 2-5)
             else
                 gBattleMons[gEffectBattler].status1 |= sStatusFlagsForMoveEffects[gBattleCommunication[MOVE_EFFECT_BYTE]];
+            RecordSleepStart(gEffectBattler); // LOTAD: remember the original sleep counter (no-op unless asleep)
 
             gBattlescriptCurrInstr = sMoveEffectBS_Ptrs[gBattleCommunication[MOVE_EFFECT_BYTE]];
 
@@ -2435,7 +2466,7 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 {
                     gBattleMons[gEffectBattler].status2 |= STATUS2_MULTIPLETURNS;
                     gLockedMoves[gEffectBattler] = gCurrentMove;
-                    gBattleMons[gEffectBattler].status2 |= STATUS2_UPROAR_TURN((Random() & 3) + 2); // 2-5 turns
+                    gBattleMons[gEffectBattler].status2 |= STATUS2_UPROAR_TURN(3); // LOTAD: Gen 5 Uproar lasts exactly 3 turns (was 2-5)
 
                     BattleScriptPush(gBattlescriptCurrInstr + 1);
                     gBattlescriptCurrInstr = sMoveEffectBS_Ptrs[gBattleCommunication[MOVE_EFFECT_BYTE]];
@@ -2480,7 +2511,7 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 }
                 else
                 {
-                    gBattleMons[gEffectBattler].status2 |= STATUS2_WRAPPED_TURN((Random() & 3) + 3); // 3-6 turns
+                    gBattleMons[gEffectBattler].status2 |= STATUS2_WRAPPED_TURN((Random() & 1) + 5); // LOTAD: Gen 5 trap counter 5-6 = 4-5 damage turns (was 3-6 = 2-5)
 
                     *(gBattleStruct->wrappedMove + gEffectBattler * 2 + 0) = gCurrentMove;
                     *(gBattleStruct->wrappedMove + gEffectBattler * 2 + 1) = gCurrentMove >> 8;
@@ -2499,7 +2530,10 @@ void SetMoveEffect(bool8 primary, u8 certain)
                 }
                 break;
             case MOVE_EFFECT_RECOIL_25: // 25% recoil
-                gBattleMoveDamage = (gHpDealt) / 4;
+                if (gCurrentMove == MOVE_STRUGGLE)
+                    gBattleMoveDamage = gBattleMons[gBattlerAttacker].maxHP / 4; // LOTAD: Gen 5 Struggle recoil = 1/4 max HP
+                else
+                    gBattleMoveDamage = (gHpDealt) / 4;
                 if (gBattleMoveDamage == 0)
                     gBattleMoveDamage = 1;
 
@@ -2764,9 +2798,41 @@ void SetMoveEffect(bool8 primary, u8 certain)
     }
 }
 
+// LOTAD: Gen 5 multi-hit moves roll Stench once per strike (from Cmd_decrementmultihit), not once at the end.
+static bool8 IsMultiHitEffect(u8 effect)
+{
+    return effect == EFFECT_MULTI_HIT || effect == EFFECT_DOUBLE_HIT
+        || effect == EFFECT_TWINEEDLE || effect == EFFECT_TRIPLE_KICK;
+}
+
+// LOTAD: Gen 5 Stench - damaging moves have a 10% chance to flinch the target. Does not stack with a move's own
+// flinch chance or King's Rock, and is blocked by Substitute, Inner Focus and Shield Dust.
+static void TryStenchFlinch(void)
+{
+    u16 effectByte = gBattleCommunication[MOVE_EFFECT_BYTE] & ~(MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN);
+
+    if (gBattleMons[gBattlerAttacker].ability != ABILITY_STENCH
+     || gBattlerTarget == gBattlerAttacker
+     || gBattleMoves[gCurrentMove].power == 0
+     || (gMoveResultFlags & MOVE_RESULT_NO_EFFECT)
+     || gBattleMons[gBattlerTarget].hp == 0
+     || (gBattleMons[gBattlerTarget].status2 & (STATUS2_SUBSTITUTE | STATUS2_FLINCHED))
+     || gBattleMons[gBattlerTarget].ability == ABILITY_INNER_FOCUS
+     || gBattleMons[gBattlerTarget].ability == ABILITY_SHIELD_DUST
+     || effectByte == MOVE_EFFECT_FLINCH
+     || ItemId_GetHoldEffect(gBattleMons[gBattlerAttacker].item) == HOLD_EFFECT_FLINCH)
+        return;
+
+    if ((Random() % 100) < 10 && GetBattlerTurnOrderNum(gBattlerTarget) > gCurrentTurnActionNumber)
+        gBattleMons[gBattlerTarget].status2 |= STATUS2_FLINCHED;
+}
+
 static void Cmd_seteffectwithchance(void)
 {
     u32 percentChance;
+
+    if (!IsMultiHitEffect(gBattleMoves[gCurrentMove].effect))
+        TryStenchFlinch();
 
     if (gBattleMons[gBattlerAttacker].ability == ABILITY_SERENE_GRACE)
         percentChance = gBattleMoves[gCurrentMove].secondaryEffectChance * 2;
@@ -2779,7 +2845,10 @@ static void Cmd_seteffectwithchance(void)
         gBattleCommunication[MOVE_EFFECT_BYTE] &= ~MOVE_EFFECT_CERTAIN;
         SetMoveEffect(FALSE, MOVE_EFFECT_CERTAIN);
     }
-    else if (Random() % 100 <= percentChance
+    // LOTAD: was "<= percentChance", which made every secondary effect chance N+1% (and, with a stale
+    // MOVE_EFFECT_BYTE after a multi-hit move, gave a 1% chance to hit the defender with a contact
+    // ability's status). Gen 5 chances are exactly N%.
+    else if (Random() % 100 < percentChance
              && gBattleCommunication[MOVE_EFFECT_BYTE]
              && !(gMoveResultFlags & MOVE_RESULT_NO_EFFECT))
     {
@@ -3530,6 +3599,7 @@ static void Cmd_setmultihit(void)
 
 static void Cmd_decrementmultihit(void)
 {
+    TryStenchFlinch(); // LOTAD: Gen 5 Stench rolls on every strike of a multi-hit move
     if (--gMultiHitCounter == 0)
         gBattlescriptCurrInstr += 5;
     else
@@ -3978,6 +4048,7 @@ static void Cmd_setgraphicalstatchangevalues(void)
     case SET_STAT_BUFF_VALUE(1): // +1
         value = STAT_ANIM_PLUS1;
         break;
+    case SET_STAT_BUFF_VALUE(3): // LOTAD: Gen 5 Tail Glow +3 reuses the +2 stat animation
     case SET_STAT_BUFF_VALUE(2): // +2
         value = STAT_ANIM_PLUS2;
         break;
@@ -4536,6 +4607,8 @@ static void Cmd_switchindataupdate(void)
     {
         gBattleMons[gActiveBattler].item = ITEM_NONE;
     }
+
+    RestoreSleepCounterOnSwitchIn(gActiveBattler); // LOTAD: Gen 5 - a sleeping mon's counter resets when it switches back in
 
     if (gBattleMoves[gCurrentMove].effect == EFFECT_BATON_PASS)
     {
@@ -5662,12 +5735,14 @@ static void Cmd_adjustsetdamage(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, holdEffect);
         gSpecialStatuses[gBattlerTarget].focusBanded = 1;
     }
-    if (!(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
+    if (!TrySturdySurvive()
+     && !(gBattleMons[gBattlerTarget].status2 & STATUS2_SUBSTITUTE)
      && (gBattleMoves[gCurrentMove].effect == EFFECT_FALSE_SWIPE || gProtectStructs[gBattlerTarget].endured || gSpecialStatuses[gBattlerTarget].focusBanded)
      && gBattleMons[gBattlerTarget].hp <= gBattleMoveDamage)
     {
@@ -6257,6 +6332,12 @@ static void Cmd_various(void)
         if (!IsFanfareTaskInactive())
             return;
         break;
+    // LOTAD: see VARIOUS_SET_LAST_USED_ITEM comment (include/constants/battle_script_commands.h) - fixes a multi-hit
+    // Focus Band message printing the wrong item name after gLastUsedItem gets clobbered between hits (ddc09361e).
+    case VARIOUS_SET_LAST_USED_ITEM:
+        gLastUsedItem = gBattleMons[gActiveBattler].item;
+        gPotentialItemEffectBattler = gActiveBattler;
+        break;
     }
 
     gBattlescriptCurrInstr += 3;
@@ -6286,7 +6367,8 @@ static void Cmd_setprotectlike(void)
             gProtectStructs[gBattlerAttacker].endured = 1;
             gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_BRACED_ITSELF;
         }
-        gDisableStructs[gBattlerAttacker].protectUses++;
+        if (gDisableStructs[gBattlerAttacker].protectUses < ARRAY_COUNT(sProtectSuccessRates) - 1)
+            gDisableStructs[gBattlerAttacker].protectUses++;
     }
     else
     {
@@ -6382,7 +6464,7 @@ static void Cmd_tryhealhalfhealth(void)
     if (gBattlescriptCurrInstr[5] == BS_ATTACKER)
         gBattlerTarget = gBattlerAttacker;
 
-    gBattleMoveDamage = gBattleMons[gBattlerTarget].maxHP / 2;
+    gBattleMoveDamage = (gBattleMons[gBattlerTarget].maxHP + 1) / 2; // LOTAD: Gen 5 half-heals round half up (was floor)
     if (gBattleMoveDamage == 0)
         gBattleMoveDamage = 1;
     gBattleMoveDamage *= -1;
@@ -6513,11 +6595,10 @@ static void Cmd_manipulatedamage(void)
         gBattleMoveDamage *= -1;
         break;
     case DMG_RECOIL_FROM_MISS:
-        gBattleMoveDamage /= 2;
+        // LOTAD: Gen 5 Jump Kick / Hi Jump Kick crash damage is always half the USER's max HP (rounded down)
+        gBattleMoveDamage = gBattleMons[gBattlerAttacker].maxHP / 2;
         if (gBattleMoveDamage == 0)
             gBattleMoveDamage = 1;
-        if ((gBattleMons[gBattlerTarget].maxHP / 2) < gBattleMoveDamage)
-            gBattleMoveDamage = gBattleMons[gBattlerTarget].maxHP / 2;
         break;
     case DMG_DOUBLED:
         gBattleMoveDamage *= 2;
@@ -6545,6 +6626,7 @@ static void Cmd_trysetrest(void)
             gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_REST;
 
         gBattleMons[gBattlerTarget].status1 = STATUS1_SLEEP_TURN(3);
+        RecordSleepStart(gBattlerTarget); // LOTAD: Rest's counter is also restored on switch-out
         BtlController_EmitSetMonData(BUFFER_A, REQUEST_STATUS_BATTLE, 0, sizeof(gBattleMons[gActiveBattler].status1), &gBattleMons[gActiveBattler].status1);
         MarkBattlerForControllerExec(gActiveBattler);
         gBattlescriptCurrInstr += 5;
@@ -6719,7 +6801,7 @@ static void Cmd_stockpiletohpheal(void)
 
 static void Cmd_negativedamage(void)
 {
-    gBattleMoveDamage = -(gHpDealt / 2);
+    gBattleMoveDamage = -((gHpDealt + 1) / 2); // LOTAD: Gen 5 drain rounds half up (was floor)
     if (gBattleMoveDamage == 0)
         gBattleMoveDamage = -1;
 
@@ -6836,7 +6918,7 @@ static u8 ChangeStatBuffs(s8 statValue, u8 statId, u8 flags, const u8 *BS_ptr)
             statValue = -GET_STAT_BUFF_VALUE(statValue);
             gBattleTextBuff2[0] = B_BUFF_PLACEHOLDER_BEGIN;
             index = 1;
-            if (statValue == -2)
+            if (statValue <= -2) // LOTAD: was == -2; keeps "harshly" wording for larger drops
             {
                 gBattleTextBuff2[1] = B_BUFF_STRING;
                 gBattleTextBuff2[2] = STRINGID_STATHARSHLY;
@@ -6859,16 +6941,25 @@ static u8 ChangeStatBuffs(s8 statValue, u8 statId, u8 flags, const u8 *BS_ptr)
         statValue = GET_STAT_BUFF_VALUE(statValue);
         gBattleTextBuff2[0] = B_BUFF_PLACEHOLDER_BEGIN;
         index = 1;
-        if (statValue == 2)
+        if (statValue >= 3) // LOTAD: Gen 5 +3 or more prints "rose drastically!" (standalone string, no "sharply"/"rose" pieces)
         {
-            gBattleTextBuff2[1] = B_BUFF_STRING;
-            gBattleTextBuff2[2] = STRINGID_STATSHARPLY;
-            gBattleTextBuff2[3] = STRINGID_STATSHARPLY >> 8;
-            index = 4;
+            gBattleTextBuff2[index++] = B_BUFF_STRING;
+            gBattleTextBuff2[index++] = STRINGID_STATROSEDRASTICALLY & 0xFF; // LOTAD: id > 255, mask the low byte
+            gBattleTextBuff2[index++] = STRINGID_STATROSEDRASTICALLY >> 8;
         }
-        gBattleTextBuff2[index++] = B_BUFF_STRING;
-        gBattleTextBuff2[index++] = STRINGID_STATROSE;
-        gBattleTextBuff2[index++] = STRINGID_STATROSE >> 8;
+        else
+        {
+            if (statValue == 2) // LOTAD: back to == 2 now that +3 has its own wording
+            {
+                gBattleTextBuff2[1] = B_BUFF_STRING;
+                gBattleTextBuff2[2] = STRINGID_STATSHARPLY;
+                gBattleTextBuff2[3] = STRINGID_STATSHARPLY >> 8;
+                index = 4;
+            }
+            gBattleTextBuff2[index++] = B_BUFF_STRING;
+            gBattleTextBuff2[index++] = STRINGID_STATROSE;
+            gBattleTextBuff2[index++] = STRINGID_STATROSE >> 8;
+        }
         gBattleTextBuff2[index] = B_BUFF_EOS;
 
         if (gBattleMons[gActiveBattler].statStages[statId] == MAX_STAT_STAGE)
@@ -7195,6 +7286,7 @@ static void Cmd_tryKO(void)
 
     gPotentialItemEffectBattler = gBattlerTarget;
 
+    gSpecialStatuses[gBattlerTarget].focusBanded = 0; // LOTAD: Gen 5 Focus Band rolls independently on each strike
     if (holdEffect == HOLD_EFFECT_FOCUS_BAND && (Random() % 100) < param)
     {
         RecordItemEffectBattle(gBattlerTarget, HOLD_EFFECT_FOCUS_BAND);
@@ -7691,6 +7783,13 @@ static void Cmd_mirrorcoatdamagecalculator(void)
     }
 }
 
+// LOTAD: Gen 5 Taunt lasts one extra turn when the target has already acted this turn (Disable no longer uses this: flat 4)
+// (the current turn then does not count against the effect).
+static u8 GetTargetActedBonus(void)
+{
+    return (GetBattlerTurnOrderNum(gBattlerTarget) < gCurrentTurnActionNumber) ? 1 : 0;
+}
+
 static void Cmd_disablelastusedattack(void)
 {
     s32 i;
@@ -7706,7 +7805,7 @@ static void Cmd_disablelastusedattack(void)
         PREPARE_MOVE_BUFFER(gBattleTextBuff1, gBattleMons[gBattlerTarget].moves[i])
 
         gDisableStructs[gBattlerTarget].disabledMove = gBattleMons[gBattlerTarget].moves[i];
-        gDisableStructs[gBattlerTarget].disableTimer = (Random() & 3) + 2;
+        gDisableStructs[gBattlerTarget].disableTimer = 4; // LOTAD: Gen 5 Disable = flat 4 turns counting the turn of use (was 2-5); no extra turn when the target already acted (Taunt keeps that bonus)
         gDisableStructs[gBattlerTarget].disableTimerStartValue = gDisableStructs[gBattlerTarget].disableTimer; // used to save the random amount of turns?
         gBattlescriptCurrInstr += 5;
     }
@@ -7738,7 +7837,7 @@ static void Cmd_trysetencore(void)
     {
         gDisableStructs[gBattlerTarget].encoredMove = gBattleMons[gBattlerTarget].moves[i];
         gDisableStructs[gBattlerTarget].encoredMovePos = i;
-        gDisableStructs[gBattlerTarget].encoreTimer = (Random() & 3) + 3;
+        gDisableStructs[gBattlerTarget].encoreTimer = 3; // LOTAD: Gen 5 Encore lasts exactly 3 turns (was 3-6)
         gDisableStructs[gBattlerTarget].encoreTimerStartValue = gDisableStructs[gBattlerTarget].encoreTimer;
         gBattlescriptCurrInstr += 5;
     }
@@ -8030,9 +8129,10 @@ static void Cmd_tryspiteppreduce(void)
                 break;
         }
 
-        if (i != MAX_MON_MOVES && gBattleMons[gBattlerTarget].pp[i] > 1)
+        // LOTAD: Gen 4+ Spite takes exactly 4 PP (or whatever is left) and no longer fails at 1 PP
+        if (i != MAX_MON_MOVES && gBattleMons[gBattlerTarget].pp[i] > 0)
         {
-            s32 ppToDeduct = (Random() & 3) + 2;
+            s32 ppToDeduct = 4;
             if (gBattleMons[gBattlerTarget].pp[i] < ppToDeduct)
                 ppToDeduct = gBattleMons[gBattlerTarget].pp[i];
 
@@ -8086,32 +8186,17 @@ static void Cmd_healpartystatus(void)
         else
             party = gEnemyParty;
 
-        if (gBattleMons[gBattlerAttacker].ability != ABILITY_SOUNDPROOF)
-        {
-            gBattleMons[gBattlerAttacker].status1 = 0;
-            gBattleMons[gBattlerAttacker].status2 &= ~STATUS2_NIGHTMARE;
-        }
-        else
-        {
-            RecordAbilityBattle(gBattlerAttacker, gBattleMons[gBattlerAttacker].ability);
-            gBattleCommunication[MULTISTRING_CHOOSER] |= B_MSG_BELL_SOUNDPROOF_ATTACKER;
-        }
+        // LOTAD: Gen 5 Heal Bell also cures Soundproof Pokemon (no Soundproof exceptions below)
+        gBattleMons[gBattlerAttacker].status1 = 0;
+        gBattleMons[gBattlerAttacker].status2 &= ~STATUS2_NIGHTMARE;
 
         gActiveBattler = gBattleScripting.battler = GetBattlerAtPosition(GetBattlerPosition(gBattlerAttacker) ^ BIT_FLANK);
 
         if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE
             && !(gAbsentBattlerFlags & gBitTable[gActiveBattler]))
         {
-            if (gBattleMons[gActiveBattler].ability != ABILITY_SOUNDPROOF)
-            {
-                gBattleMons[gActiveBattler].status1 = 0;
-                gBattleMons[gActiveBattler].status2 &= ~STATUS2_NIGHTMARE;
-            }
-            else
-            {
-                RecordAbilityBattle(gActiveBattler, gBattleMons[gActiveBattler].ability);
-                gBattleCommunication[MULTISTRING_CHOOSER] |= B_MSG_BELL_SOUNDPROOF_PARTNER;
-            }
+            gBattleMons[gActiveBattler].status1 = 0;
+            gBattleMons[gActiveBattler].status2 &= ~STATUS2_NIGHTMARE;
         }
 
         // Because the above MULTISTRING_CHOOSER are ORd, if both are set then it will be B_MSG_BELL_BOTH_SOUNDPROOF
@@ -8119,24 +8204,9 @@ static void Cmd_healpartystatus(void)
         for (i = 0; i < PARTY_SIZE; i++)
         {
             u16 species = GetMonData(&party[i], MON_DATA_SPECIES_OR_EGG);
-            u8 abilityNum = GetMonData(&party[i], MON_DATA_ABILITY_NUM);
 
             if (species != SPECIES_NONE && species != SPECIES_EGG)
-            {
-                u8 ability;
-
-                if (gBattlerPartyIndexes[gBattlerAttacker] == i)
-                    ability = gBattleMons[gBattlerAttacker].ability;
-                else if (gBattleTypeFlags & BATTLE_TYPE_DOUBLE
-                         && gBattlerPartyIndexes[gActiveBattler] == i
-                         && !(gAbsentBattlerFlags & gBitTable[gActiveBattler]))
-                    ability = gBattleMons[gActiveBattler].ability;
-                else
-                    ability = GetAbilityBySpecies(species, abilityNum);
-
-                if (ability != ABILITY_SOUNDPROOF)
-                    toHeal |= (1 << i);
-            }
+                toHeal |= (1 << i);
         }
     }
     else // Aromatherapy
@@ -8290,7 +8360,7 @@ static void Cmd_furycuttercalc(void)
     {
         s32 i;
 
-        if (gDisableStructs[gBattlerAttacker].furyCutterCounter != 5)
+        if (gDisableStructs[gBattlerAttacker].furyCutterCounter != 4) // LOTAD: Gen 5 Fury Cutter caps at 8x (20 -> 160)
             gDisableStructs[gBattlerAttacker].furyCutterCounter++;
 
         gDynamicBasePower = gBattleMoves[gCurrentMove].power;
@@ -8618,6 +8688,76 @@ static void Cmd_selectfirstvalidtarget(void)
     gBattlescriptCurrInstr++;
 }
 
+// LOTAD: Gen 5 Future Sight / Doom Desire - damage is calculated when the attack HITS, with the user's Sp. Atk vs the
+// target's Sp. Def at that time, as a Psychic / Steel move (type effectiveness, STAB, crits). Runs the normal
+// critcalc/damagecalc/typecalc steps synchronously. If the user is no longer on the field (replaced in its slot, or
+// fainted and not replaced), its party data (player or enemy party) is copied into the slot only for the duration of
+// this function. Gen 5: an off-field user's ability and held item are NOT applied. Leaves the result in
+// gBattleMoveDamage / gMoveResultFlags.
+void CalcFutureAttackDamage(u8 attackerSlot, u8 targetSlot, u16 move, u8 attackerPartyIdx)
+{
+    struct BattlePokemon savedAttacker = gBattleMons[attackerSlot];
+    const u8 *savedInstr = gBattlescriptCurrInstr;
+    u16 savedMove = gCurrentMove;
+    static const u8 sScratchScript[8] = {0};  // the Cmd_ functions below only advance this pointer
+    bool8 substituted = FALSE;
+    // LOTAD: the user counts as off the field if another party mon is in its slot, or if it fainted / left the slot empty
+    bool8 userOffField = (gBattlerPartyIndexes[attackerSlot] != attackerPartyIdx
+                          || gBattleMons[attackerSlot].hp == 0
+                          || (gAbsentBattlerFlags & gBitTable[attackerSlot]));
+    s32 i;
+
+    // LOTAD: guard against a bad stored party index or an empty/egg party entry; fall back to the slot's own data
+    if (userOffField && attackerPartyIdx < PARTY_SIZE)
+    {
+        // LOTAD: same helper for both sides - only the party array differs
+        struct Pokemon *mon = (GetBattlerSide(attackerSlot) == B_SIDE_PLAYER) ? &gPlayerParty[attackerPartyIdx]
+                                                                               : &gEnemyParty[attackerPartyIdx];
+        u16 monSpecies = GetMonData(mon, MON_DATA_SPECIES_OR_EGG);
+
+        if (monSpecies != SPECIES_NONE && monSpecies != SPECIES_EGG)
+        {
+            gBattleMons[attackerSlot].species = monSpecies;
+            gBattleMons[attackerSlot].item = ITEM_NONE; // LOTAD: Gen 5 - off-field user's held item is not applied
+            gBattleMons[attackerSlot].level = GetMonData(mon, MON_DATA_LEVEL);
+            gBattleMons[attackerSlot].hp = GetMonData(mon, MON_DATA_HP);
+            gBattleMons[attackerSlot].maxHP = GetMonData(mon, MON_DATA_MAX_HP);
+            gBattleMons[attackerSlot].attack = GetMonData(mon, MON_DATA_ATK);
+            gBattleMons[attackerSlot].defense = GetMonData(mon, MON_DATA_DEF);
+            gBattleMons[attackerSlot].speed = GetMonData(mon, MON_DATA_SPEED);
+            gBattleMons[attackerSlot].spAttack = GetMonData(mon, MON_DATA_SPATK);
+            gBattleMons[attackerSlot].spDefense = GetMonData(mon, MON_DATA_SPDEF);
+            gBattleMons[attackerSlot].type1 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[0];
+            gBattleMons[attackerSlot].type2 = gSpeciesInfo[gBattleMons[attackerSlot].species].types[1];
+            gBattleMons[attackerSlot].ability = ABILITY_NONE; // LOTAD: Gen 5 - off-field user's ability is not applied
+            gBattleMons[attackerSlot].status1 = GetMonData(mon, MON_DATA_STATUS);
+            gBattleMons[attackerSlot].status2 = 0;
+            for (i = 0; i < NUM_BATTLE_STATS; i++)
+                gBattleMons[attackerSlot].statStages[i] = DEFAULT_STAT_STAGE;
+            substituted = TRUE;
+        }
+    }
+
+    gBattlerAttacker = attackerSlot;
+    gBattlerTarget = targetSlot;
+    gCurrentMove = move;
+    gBattleStruct->dynamicMoveType = 0;
+    gDynamicBasePower = 0;
+    gBattleScripting.dmgMultiplier = 1;
+    gMoveResultFlags = 0;
+    gBattleMoveDamage = 0;
+    gBattlescriptCurrInstr = sScratchScript;
+
+    Cmd_critcalc();
+    Cmd_damagecalc();
+    Cmd_typecalc();
+
+    gBattlescriptCurrInstr = savedInstr;
+    gCurrentMove = savedMove;
+    if (substituted)
+        gBattleMons[attackerSlot] = savedAttacker;
+}
+
 static void Cmd_trysetfutureattack(void)
 {
     if (gWishFutureKnock.futureSightCounter[gBattlerTarget] != 0)
@@ -8629,12 +8769,9 @@ static void Cmd_trysetfutureattack(void)
         gWishFutureKnock.futureSightMove[gBattlerTarget] = gCurrentMove;
         gWishFutureKnock.futureSightAttacker[gBattlerTarget] = gBattlerAttacker;
         gWishFutureKnock.futureSightCounter[gBattlerTarget] = 3;
-        gWishFutureKnock.futureSightDmg[gBattlerTarget] = CalculateBaseDamage(&gBattleMons[gBattlerAttacker], &gBattleMons[gBattlerTarget], gCurrentMove,
-                                                    gSideStatuses[GET_BATTLER_SIDE(gBattlerTarget)], 0,
-                                                    0, gBattlerAttacker, gBattlerTarget);
-
-        if (gProtectStructs[gBattlerAttacker].helpingHand)
-            gWishFutureKnock.futureSightDmg[gBattlerTarget] = gWishFutureKnock.futureSightDmg[gBattlerTarget] * 15 / 10;
+        // LOTAD: Gen 5 - damage is no longer calculated here at cast time; it is calculated when the attack lands
+        // (CalcFutureAttackDamage). Remember which party slot cast it so its stats can be used even if it switched out.
+        gWishFutureKnock.futureSightPartyIdx[gBattlerTarget] = gBattlerPartyIndexes[gBattlerAttacker];
 
         if (gCurrentMove == MOVE_DOOM_DESIRE)
             gBattleCommunication[MULTISTRING_CHOOSER] = B_MSG_DOOM_DESIRE;
@@ -8663,25 +8800,22 @@ static void Cmd_trydobeatup(void)
         u8 beforeLoop = gBattleCommunication[0];
         for (;gBattleCommunication[0] < PARTY_SIZE; gBattleCommunication[0]++)
         {
+            // LOTAD: Gen 5 - the user always takes part (even when statused); other members must be healthy
             if (GetMonData(&party[gBattleCommunication[0]], MON_DATA_HP)
                 && GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES_OR_EGG)
                 && GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES_OR_EGG) != SPECIES_EGG
-                && !GetMonData(&party[gBattleCommunication[0]], MON_DATA_STATUS))
+                && (gBattleCommunication[0] == gBattlerPartyIndexes[gBattlerAttacker]
+                    || !GetMonData(&party[gBattleCommunication[0]], MON_DATA_STATUS)))
                 break;
         }
         if (gBattleCommunication[0] < PARTY_SIZE)
         {
-            PREPARE_MON_NICK_WITH_PREFIX_BUFFER(gBattleTextBuff1, gBattlerAttacker, gBattleCommunication[0])
-
             gBattlescriptCurrInstr += 9;
 
-            gBattleMoveDamage = gSpeciesInfo[GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES)].baseAttack;
-            gBattleMoveDamage *= gBattleMoves[gCurrentMove].power;
-            gBattleMoveDamage *= (GetMonData(&party[gBattleCommunication[0]], MON_DATA_LEVEL) * 2 / 5 + 2);
-            gBattleMoveDamage /= gSpeciesInfo[gBattleMons[gBattlerTarget].species].baseDefense;
-            gBattleMoveDamage = (gBattleMoveDamage / 50) + 2;
-            if (gProtectStructs[gBattlerAttacker].helpingHand)
-                gBattleMoveDamage = gBattleMoveDamage * 15 / 10;
+            // LOTAD: Gen 5 Beat Up - each strike uses the USER's Attack vs the target's Defense through the normal
+            // damage path (STAB, Dark-type effectiveness, crits, Attack boosts); only the base power depends on the
+            // party member: 5 + baseAttack / 10. Damage itself is now computed by damagecalc in the script.
+            gDynamicBasePower = 5 + gSpeciesInfo[GetMonData(&party[gBattleCommunication[0]], MON_DATA_SPECIES)].baseAttack / 10;
 
             gBattleCommunication[0]++;
         }
@@ -8843,8 +8977,9 @@ static void Cmd_settaunt(void)
 {
     if (gDisableStructs[gBattlerTarget].tauntTimer == 0)
     {
-        gDisableStructs[gBattlerTarget].tauntTimer = 2;
-        gDisableStructs[gBattlerTarget].tauntTimer2 = 2;
+        // LOTAD: Gen 5 Taunt = 3 turns (4 if the target already acted this turn); was 2
+        gDisableStructs[gBattlerTarget].tauntTimer = 3 + GetTargetActedBonus();
+        gDisableStructs[gBattlerTarget].tauntTimer2 = 3 + GetTargetActedBonus();
         gBattlescriptCurrInstr += 5;
     }
     else
@@ -8982,6 +9117,8 @@ static void Cmd_trywish(void)
         {
             gWishFutureKnock.wishCounter[gBattlerAttacker] = 2;
             gWishFutureKnock.wishMonId[gBattlerAttacker] = gBattlerPartyIndexes[gBattlerAttacker];
+            // LOTAD: Gen 5 - the heal is half of the WISHER's max HP, even if another mon is out when it lands
+            gWishFutureKnock.wishHeal[gBattlerAttacker] = gBattleMons[gBattlerAttacker].maxHP / 2;
             gBattlescriptCurrInstr += 6;
         }
         else
@@ -8992,7 +9129,7 @@ static void Cmd_trywish(void)
     case 1: // heal effect
         PREPARE_MON_NICK_WITH_PREFIX_BUFFER(gBattleTextBuff1, gBattlerTarget, gWishFutureKnock.wishMonId[gBattlerTarget])
 
-        gBattleMoveDamage = gBattleMons[gBattlerTarget].maxHP / 2;
+        gBattleMoveDamage = gWishFutureKnock.wishHeal[gBattlerTarget];
         if (gBattleMoveDamage == 0)
             gBattleMoveDamage = 1;
         gBattleMoveDamage *= -1;

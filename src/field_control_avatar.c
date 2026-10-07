@@ -709,26 +709,8 @@ void ClearPoisonStepCounter(void)
 
 static bool8 UpdatePoisonStepCounter(void)
 {
-    u16 *ptr;
-
-    if (gMapHeader.mapType != MAP_TYPE_SECRET_BASE)
-    {
-        ptr = GetVarPointer(VAR_POISON_STEP_COUNTER);
-        (*ptr)++;
-        (*ptr) %= 5;
-        if (*ptr == 0)
-        {
-            switch (DoPoisonFieldEffect())
-            {
-            case FLDPSN_NONE:
-                return FALSE;
-            case FLDPSN_PSN:
-                return FALSE;
-            case FLDPSN_FNT:
-                return TRUE;
-            }
-        }
-    }
+    // LOTAD: Gen 5 - poisoned Pokemon no longer take damage (or faint) while walking in the overworld.
+    // The Gen 3 step counter / DoPoisonFieldEffect() call was removed; kept as a stub so callers are unchanged.
     return FALSE;
 }
 

@@ -456,12 +456,23 @@ BattleScript_DreamEaterWorked:
 	waitmessage B_WAIT_TIME_LONG
 	negativedamage
 	orword gHitMarker, HITMARKER_IGNORE_SUBSTITUTE
+	@ LOTAD: Gen 5 - Liquid Ooze also damages a Dream Eater user
+	jumpifability BS_TARGET, ABILITY_LIQUID_OOZE, BattleScript_DreamEaterLiquidOoze
 	healthbarupdate BS_ATTACKER
 	datahpupdate BS_ATTACKER
 	jumpifmovehadnoeffect BattleScript_DreamEaterTryFaintEnd
 	printstring STRINGID_PKMNDREAMEATEN
 	waitmessage B_WAIT_TIME_LONG
 BattleScript_DreamEaterTryFaintEnd:
+	tryfaintmon BS_TARGET
+	goto BattleScript_MoveEnd
+BattleScript_DreamEaterLiquidOoze::
+	manipulatedamage DMG_CHANGE_SIGN
+	healthbarupdate BS_ATTACKER
+	datahpupdate BS_ATTACKER
+	printstring STRINGID_ITSUCKEDLIQUIDOOZE
+	waitmessage B_WAIT_TIME_LONG
+	tryfaintmon BS_ATTACKER
 	tryfaintmon BS_TARGET
 	goto BattleScript_MoveEnd
 
@@ -484,9 +495,47 @@ BattleScript_EffectDefenseUp::
 	setstatchanger STAT_DEF, 1, FALSE
 	goto BattleScript_EffectStatUp
 
+@ LOTAD: Gen 5 Growth - raises Attack and Sp. Atk by 1 stage each (2 each in harsh sunlight)
 BattleScript_EffectSpecialAttackUp::
+	attackcanceler
+	attackstring
+	ppreduce
+	jumpifstat BS_ATTACKER, CMP_LESS_THAN, STAT_ATK, MAX_STAT_STAGE, BattleScript_GrowthDoMoveAnim
+	jumpifstat BS_ATTACKER, CMP_EQUAL, STAT_SPATK, MAX_STAT_STAGE, BattleScript_CantRaiseMultipleStats
+BattleScript_GrowthDoMoveAnim::
+	attackanimation
+	waitanimation
+	setbyte sSTAT_ANIM_PLAYED, FALSE
+	playstatchangeanimation BS_ATTACKER, BIT_ATK | BIT_SPATK, 0
+	jumpifabilitypresent ABILITY_CLOUD_NINE, BattleScript_GrowthAtkNormal
+	jumpifabilitypresent ABILITY_AIR_LOCK, BattleScript_GrowthAtkNormal
+	jumpifhalfword CMP_COMMON_BITS, gBattleWeather, B_WEATHER_SUN, BattleScript_GrowthAtkSun
+BattleScript_GrowthAtkNormal::
+	setstatchanger STAT_ATK, 1, FALSE
+	goto BattleScript_GrowthAtkDo
+BattleScript_GrowthAtkSun::
+	setstatchanger STAT_ATK, 2, FALSE
+BattleScript_GrowthAtkDo::
+	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_ALLOW_PTR, BattleScript_GrowthTrySpAtk
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_GrowthTrySpAtk
+	printfromtable gStatUpStringIds
+	waitmessage B_WAIT_TIME_LONG
+BattleScript_GrowthTrySpAtk::
+	jumpifabilitypresent ABILITY_CLOUD_NINE, BattleScript_GrowthSpAtkNormal
+	jumpifabilitypresent ABILITY_AIR_LOCK, BattleScript_GrowthSpAtkNormal
+	jumpifhalfword CMP_COMMON_BITS, gBattleWeather, B_WEATHER_SUN, BattleScript_GrowthSpAtkSun
+BattleScript_GrowthSpAtkNormal::
 	setstatchanger STAT_SPATK, 1, FALSE
-	goto BattleScript_EffectStatUp
+	goto BattleScript_GrowthSpAtkDo
+BattleScript_GrowthSpAtkSun::
+	setstatchanger STAT_SPATK, 2, FALSE
+BattleScript_GrowthSpAtkDo::
+	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_ALLOW_PTR, BattleScript_GrowthEnd
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_GrowthEnd
+	printfromtable gStatUpStringIds
+	waitmessage B_WAIT_TIME_LONG
+BattleScript_GrowthEnd::
+	goto BattleScript_MoveEnd
 
 BattleScript_EffectEvasionUp::
 	setstatchanger STAT_EVASION, 1, FALSE
@@ -638,7 +687,29 @@ BattleScript_DoMultiHit::
 	waitmessage 1
 	addbyte sMULTIHIT_STRING + 4, 1
 	moveendto MOVEEND_NEXT_TARGET
-	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_ENDURED, BattleScript_MultiHitPrintStrings
+	@ LOTAD: Endure/Focus Band still end the sequence, but a Sturdy survival must not (Gen 5): later strikes hit the 1 HP holder.
+	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_ENDURED, BattleScript_MultiHitEndured
+	@ LOTAD: Focus Band also saves independently per strike (Gen 5, commit 0f9e2d89b) without ending the sequence. Its
+	@ message must print HERE, per strike: movevaluescleanup wipes gMoveResultFlags before the next hit runs, so a save on
+	@ a non-final strike would otherwise go unreported once the sequence's end-of-loop resultmessage only sees the LAST hit.
+	jumpifbyte CMP_COMMON_BITS, gMoveResultFlags, MOVE_RESULT_FOE_HUNG_ON, BattleScript_MultiHitFocusBandContinue
+	decrementmultihit BattleScript_MultiHitLoop
+	goto BattleScript_MultiHitPrintStrings
+BattleScript_MultiHitFocusBandContinue::
+	bicbyte gMoveResultFlags, MOVE_RESULT_FOE_HUNG_ON @ printed now; stop the end-of-sequence resultmessage repeating it
+	@ LOTAD: gLastUsedItem (which BattleScript_FocusBandActivates' message reads) can be clobbered by other item/ability
+	@ checks between hits (e.g. a weather-rock check on either battler) - re-stamp it to the target's actual item first.
+	various BS_TARGET, VARIOUS_SET_LAST_USED_ITEM
+	call BattleScript_FocusBandActivates
+	decrementmultihit BattleScript_MultiHitLoop
+	goto BattleScript_MultiHitPrintStrings
+BattleScript_MultiHitEndured::
+	@ LOTAD: same reasoning as Focus Band above - print Sturdy's/Endure's "endured the hit" now, per strike, not deferred.
+	bicbyte gMoveResultFlags, MOVE_RESULT_FOE_ENDURED @ printed now; stop the end-of-sequence resultmessage repeating it
+	call BattleScript_EnduredMsg
+	jumpifability BS_TARGET, ABILITY_STURDY, BattleScript_MultiHitSturdyContinue
+	goto BattleScript_MultiHitPrintStrings
+BattleScript_MultiHitSturdyContinue::
 	decrementmultihit BattleScript_MultiHitLoop
 	goto BattleScript_MultiHitPrintStrings
 BattleScript_MultiHitNoMoreHits::
@@ -937,7 +1008,7 @@ BattleScript_EffectSpeedUp2::
 	goto BattleScript_EffectStatUp
 
 BattleScript_EffectSpecialAttackUp2::
-	setstatchanger STAT_SPATK, 2, FALSE
+	setstatchanger STAT_SPATK, 3, FALSE @ LOTAD: Gen 5 Tail Glow is +3
 	goto BattleScript_EffectStatUp
 
 BattleScript_EffectSpecialDefenseUp2::
@@ -1474,7 +1545,7 @@ BattleScript_NightmareWorked::
 BattleScript_EffectMinimize::
 	attackcanceler
 	setminimize
-	setstatchanger STAT_EVASION, 1, FALSE
+	setstatchanger STAT_EVASION, 2, FALSE @ LOTAD: Gen 5 Minimize is +2
 	goto BattleScript_EffectStatUpAfterAtkCanceler
 
 BattleScript_EffectCurse::
@@ -1513,7 +1584,7 @@ BattleScript_DoGhostCurse::
 	attackcanceler
 	attackstring
 	ppreduce
-	jumpifstatus2 BS_TARGET, STATUS2_SUBSTITUTE, BattleScript_ButItFailed
+	@ LOTAD: Gen 5 Ghost Curse bypasses Substitute (Substitute check removed)
 	accuracycheck BattleScript_ButItFailed, NO_ACC_CALC_CHECK_LOCK_ON
 	cursetarget BattleScript_ButItFailed
 	orword gHitMarker, HITMARKER_IGNORE_SUBSTITUTE
@@ -1945,10 +2016,10 @@ BattleScript_EffectBeatUp::
 BattleScript_BeatUpLoop::
 	movevaluescleanup
 	trydobeatup BattleScript_BeatUpEnd, BattleScript_ButItFailed
-	printstring STRINGID_PKMNATTACK
+	@ LOTAD: Gen 5 Beat Up - normal damage path (user's Attack, STAB, type effectiveness, crits); no per-attacker message
 	critcalc
-	jumpifbyte CMP_NOT_EQUAL, gCritMultiplier, 2, BattleScript_BeatUpAttack
-	manipulatedamage DMG_DOUBLED
+	damagecalc
+	typecalc
 BattleScript_BeatUpAttack::
 	adjustnormaldamage
 	attackanimation
@@ -2319,6 +2390,14 @@ BattleScript_EffectCharge::
 	waitanimation
 	printstring STRINGID_PKMNCHARGINGPOWER
 	waitmessage B_WAIT_TIME_LONG
+	@ LOTAD: Gen 4+ Charge also raises the user's Sp. Def by 1 stage
+	setstatchanger STAT_SPDEF, 1, FALSE
+	statbuffchange MOVE_EFFECT_AFFECTS_USER | STAT_CHANGE_ALLOW_PTR, BattleScript_MoveEnd
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_MoveEnd
+	setgraphicalstatchangevalues
+	playanimation BS_ATTACKER, B_ANIM_STATS_CHANGE, sB_ANIM_ARG1
+	printfromtable gStatUpStringIds
+	waitmessage B_WAIT_TIME_LONG
 	goto BattleScript_MoveEnd
 
 BattleScript_EffectTaunt::
@@ -2581,8 +2660,37 @@ BattleScript_EffectSecretPower::
 	goto BattleScript_EffectHit
 
 BattleScript_EffectDoubleEdge::
+	jumpifmove MOVE_VOLT_TACKLE, BattleScript_EffectVoltTackle
 	setmoveeffect MOVE_EFFECT_RECOIL_33 | MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN
 	goto BattleScript_EffectHit
+
+@ LOTAD: Gen 4+ Volt Tackle - recoil plus a 10% paralysis chance (one effect byte per hit, so two applications)
+BattleScript_EffectVoltTackle::
+	attackcanceler
+	accuracycheck BattleScript_PrintMoveMissed, ACC_CURR_MOVE
+	attackstring
+	ppreduce
+	critcalc
+	damagecalc
+	typecalc
+	adjustnormaldamage
+	attackanimation
+	waitanimation
+	effectivenesssound
+	hitanimation BS_TARGET
+	waitstate
+	healthbarupdate BS_TARGET
+	datahpupdate BS_TARGET
+	critmessage
+	waitmessage B_WAIT_TIME_LONG
+	resultmessage
+	waitmessage B_WAIT_TIME_LONG
+	setmoveeffect MOVE_EFFECT_RECOIL_33 | MOVE_EFFECT_AFFECTS_USER | MOVE_EFFECT_CERTAIN
+	seteffectwithchance
+	setmoveeffect MOVE_EFFECT_PARALYSIS
+	seteffectwithchance
+	tryfaintmon BS_TARGET
+	goto BattleScript_MoveEnd
 
 BattleScript_EffectTeeterDance::
 	attackcanceler
@@ -3500,6 +3608,9 @@ BattleScript_DoFutureAttackHit::
 	waitstate
 	healthbarupdate BS_TARGET
 	datahpupdate BS_TARGET
+	@ LOTAD: Gen 5 - Future Sight / Doom Desire can crit
+	critmessage
+	waitmessage B_WAIT_TIME_LONG
 	resultmessage
 	waitmessage B_WAIT_TIME_LONG
 	tryfaintmon BS_TARGET
@@ -4097,6 +4208,25 @@ BattleScript_FlashFireBoost::
 	attackstring
 	pause B_WAIT_TIME_SHORT
 	printfromtable gFlashFireStringIds
+	waitmessage B_WAIT_TIME_LONG
+	goto BattleScript_MoveEnd
+
+@ LOTAD: Gen 5 Lightning Rod (singles). The absorber is BS_TARGET; +1 Sp. Atk, or "made it ineffective" if maxed.
+BattleScript_LightningRodAbsorb_PPLoss::
+	ppreduce
+BattleScript_LightningRodAbsorb::
+	attackstring
+	pause B_WAIT_TIME_SHORT
+	setstatchanger STAT_SPATK, 1, FALSE
+	statbuffchange STAT_CHANGE_ALLOW_PTR, BattleScript_LightningRodAbsorbNoBoost
+	jumpifbyte CMP_EQUAL, cMULTISTRING_CHOOSER, B_MSG_STAT_WONT_INCREASE, BattleScript_LightningRodAbsorbNoBoost
+	setgraphicalstatchangevalues
+	playanimation BS_TARGET, B_ANIM_STATS_CHANGE, sB_ANIM_ARG1
+	printstring STRINGID_PKMNRAISEDSPATKWITH
+	waitmessage B_WAIT_TIME_LONG
+	goto BattleScript_MoveEnd
+BattleScript_LightningRodAbsorbNoBoost::
+	printstring STRINGID_PKMNSXMADEYINEFFECTIVE
 	waitmessage B_WAIT_TIME_LONG
 	goto BattleScript_MoveEnd
 

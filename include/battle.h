@@ -260,6 +260,8 @@ struct WishFutureKnock
     u16 futureSightMove[MAX_BATTLERS_COUNT];
     u8 wishCounter[MAX_BATTLERS_COUNT];
     u8 wishMonId[MAX_BATTLERS_COUNT];
+    u16 wishHeal[MAX_BATTLERS_COUNT];              // LOTAD: Gen 5 Wish heals half of the WISHER's max HP (stored at cast)
+    u8 futureSightPartyIdx[MAX_BATTLERS_COUNT];    // LOTAD: Gen 5 Future Sight/Doom Desire - attacker's party slot
     u8 weatherDuration;
     u8 knockedOffMons[2];
 };
@@ -455,7 +457,10 @@ struct BattleStruct
         struct LinkBattlerHeader linkBattlerHeader;
         struct MultiBattlePokemonTx multiBattleMons[3];
     } multiBuffer;
-    u8 padding_1E4[0x1C];
+    // LOTAD: Gen 5 - original sleep counter per side/party slot, restored when a sleeping mon switches back in
+    // (carved out of the old padding so sizeof(struct BattleStruct) stays 0x200)
+    u8 sleepOrigCounter[2][PARTY_SIZE];
+    u8 padding_1F0[0x10];
 }; // size == 0x200 bytes
 
 extern struct BattleStruct *gBattleStruct;

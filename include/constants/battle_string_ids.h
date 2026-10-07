@@ -386,8 +386,10 @@
 #define STRINGID_TRAINER1MON1AND2COMEBACK 385
 #define STRINGID_PKMNSURROUNDEDWITHVEILOFWATER 386
 #define STRINGID_PKMNAQUARINGHEALEDHP 387
+#define STRINGID_PKMNRAISEDSPATKWITH 388 // LOTAD: Gen 5 Lightning Rod (singles)
+#define STRINGID_STATROSEDRASTICALLY 389 // LOTAD: Gen 5 "rose drastically!" for +3 or more
 
-#define BATTLESTRINGS_COUNT     388
+#define BATTLESTRINGS_COUNT     390
 
 // This is the string id that gBattleStringsTable starts with.
 // String ids before this (e.g. STRINGID_INTROMSG) are not in the table,

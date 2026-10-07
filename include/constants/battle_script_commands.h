@@ -89,6 +89,10 @@
 #define VARIOUS_RETURN_OPPONENT_MON2            10
 #define VARIOUS_CHECK_POKEFLUTE                 11
 #define VARIOUS_WAIT_FANFARE                    12
+// LOTAD: re-stamps gLastUsedItem/gPotentialItemEffectBattler for the given battler right before printing a "hung on
+// using its X" message inline mid-multi-hit (ddc09361e). gLastUsedItem is a shared scratch global other item/ability
+// checks (e.g. weather-extending rocks) can overwrite between the moment Focus Band sets it and a delayed print.
+#define VARIOUS_SET_LAST_USED_ITEM              13
 
 // Cmd_manipulatedmg
 #define DMG_CHANGE_SIGN            0

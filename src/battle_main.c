@@ -2324,6 +2324,16 @@ static void BattleStartClearSetData(void)
         gBattleResults.playerMon2Name[i] = 0;
         gBattleResults.caughtMonNick[i] = 0;
     }
+
+    // LOTAD: Gen 5 sleep-counter switch-out reset (P6.2) - seed sleepOrigCounter from a mon that is ALREADY asleep
+    // when the battle starts (e.g. it fell asleep in an earlier battle). Every other write to this array happens
+    // when sleep is newly applied IN this battle (Sleep Powder/Spore, Rest, Yawn); none of them cover a mon that
+    // walks in already sleeping, so its counter was never recorded and switching it out/in silently failed to
+    // reset it. gBattleStruct is heap-allocated and zeroed by AllocateBattleResources (called earlier, from
+    // CB2_InitBattle, before BeginBattleIntro ever runs this function), so this only needs to fill in the nonzero
+    // case. Player side only: trainer/wild mons never start a battle asleep in vanilla (gEnemyParty out of scope).
+    for (i = 0; i < PARTY_SIZE; i++)
+        gBattleStruct->sleepOrigCounter[B_SIDE_PLAYER][i] = GetMonData(&gPlayerParty[i], MON_DATA_STATUS) & STATUS1_SLEEP;
 }
 
 void SwitchInClearSetData(void)
@@ -3449,11 +3459,7 @@ u8 GetWhoStrikesFirst(u8 battler1, u8 battler2, bool8 ignoreChosenMoves)
         holdEffect = ItemId_GetHoldEffect(gBattleMons[battler1].item);
         holdEffectParam = ItemId_GetHoldEffectParam(gBattleMons[battler1].item);
     }
-    // badge boost
-    if (!(gBattleTypeFlags & BATTLE_TYPE_LINK)
-     && FlagGet(FLAG_BADGE03_GET)
-     && GetBattlerSide(battler1) == B_SIDE_PLAYER)
-        speedBattler1 = (speedBattler1 * 110) / 100;
+    // LOTAD: Gen 3 badge speed boost removed (Gen 5 has no badge boosts)
     if (holdEffect == HOLD_EFFECT_MACHO_BRACE)
         speedBattler1 /= 2;
     if (gBattleMons[battler1].status1 & STATUS1_PARALYSIS)
@@ -3474,11 +3480,7 @@ u8 GetWhoStrikesFirst(u8 battler1, u8 battler2, bool8 ignoreChosenMoves)
         holdEffect = ItemId_GetHoldEffect(gBattleMons[battler2].item);
         holdEffectParam = ItemId_GetHoldEffectParam(gBattleMons[battler2].item);
     }
-    // badge boost
-    if (!(gBattleTypeFlags & BATTLE_TYPE_LINK)
-     && FlagGet(FLAG_BADGE03_GET)
-     && GetBattlerSide(battler2) == B_SIDE_PLAYER)
-        speedBattler2 = (speedBattler2 * 110) / 100;
+    // LOTAD: Gen 3 badge speed boost removed (Gen 5 has no badge boosts)
     if (holdEffect == HOLD_EFFECT_MACHO_BRACE)
         speedBattler2 /= 2;
     if (gBattleMons[battler2].status1 & STATUS1_PARALYSIS)
@@ -3640,7 +3642,15 @@ static void TurnValuesCleanUp(bool8 var0)
         if (var0)
         {
             gProtectStructs[gActiveBattler].protected = FALSE;
-            gProtectStructs[gActiveBattler].endured = FALSE;
+            // LOTAD: Gen 5 - Endure now also stops a delayed Future Sight/Doom Desire landing (which lands via
+            // HandleWishPerishSongOnTurnEnd, called later in BattleTurnPassed, after this TRUE-branch cleanup but
+            // before the FALSE-branch call at the end of the same function). Leaving `endured` set here - instead
+            // of clearing it early like vanilla did - lets it survive to that landing check. It still cannot leak
+            // into the next turn: the FALSE branch below zeroes the whole ProtectStruct (endured included) before
+            // HandleTurnActionSelectionState runs again. No other code between the two calls reads this flag -
+            // confirmed by grepping every .endured site in src/ and data/ (only Cmd_adjustnormaldamage[2],
+            // Cmd_adjustsetdamage and Cmd_tryKO in battle_script_commands.c ever read it, and poison/burn/curse/
+            // nightmare/leech-seed/weather chip damage all apply through datahpupdate directly, bypassing those).
         }
         else
         {
@@ -3851,6 +3861,21 @@ static void HandleEndTurn_FinishBattle(void)
                         gBattleResults.playerMon2Species = gBattleMons[gActiveBattler].species;
                         StringCopy(gBattleResults.playerMon2Name, gBattleMons[gActiveBattler].nickname);
                     }
+                }
+            }
+        }
+        // LOTAD: Gen 5 - a badly poisoned party member reverts to regular poison at the end of battle
+        {
+            s32 partyIdx;
+
+            for (partyIdx = 0; partyIdx < PARTY_SIZE; partyIdx++)
+            {
+                u32 partyStatus = GetMonData(&gPlayerParty[partyIdx], MON_DATA_STATUS);
+
+                if (partyStatus & STATUS1_TOXIC_POISON)
+                {
+                    partyStatus = (partyStatus & ~(STATUS1_TOXIC_POISON | STATUS1_TOXIC_COUNTER)) | STATUS1_POISON;
+                    SetMonData(&gPlayerParty[partyIdx], MON_DATA_STATUS, &partyStatus);
                 }
             }
         }
